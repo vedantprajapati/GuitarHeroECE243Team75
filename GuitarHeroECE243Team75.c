@@ -17,6 +17,7 @@ void swap(int * x, int * y);
 void wait_state();
 void draw_starting_menu();
 
+//structure containing each colour value so that it is easier to draw images
 struct colours{
     short int white;
     short int black;
@@ -29,8 +30,26 @@ struct colours{
     short int yellow;
     short int grey;
 };
-
+//set respective colours to their valie
 struct colours colour = {0xFFFF, 0x0000, 0x555F, 0x58f5, 0x5FA5, 0xf500, 0xf888, 0xf833, 0xfff0, 0x2102};
+
+//define the current state of the game
+struct game_data{
+enum current_state {start_menu, game_menu, score_menu};
+enum difficulty_level {easy, medium, hard, insane};
+//need to use switch case to determine what things to initialize according to states
+//depending on difficulty, tempo_multiplier 
+double difficulty_tempo_multiplier[4] = {1.0,1.5,2.0,3.0};
+//what is the song that the user will select
+enum current_song = {song_1,song_2,song_3,song_4};
+//each of the song names respectively
+char song_names[4][10] = {"song_1", "song_2", "song_3", "song_4"};
+//a vector of the song tempos for each song respectively
+double song_default_tempo[4] = {100,100,100,100};
+}
+//initialize the game data, defaults to start_menu, easy, song_1;
+struct game_data game_info = {start_menu, easy};
+
 
 int main(void){
 
@@ -44,7 +63,7 @@ int main(void){
     //animate the drawing
     int ypos = 0;
     int increment = 1;
-    short int white = 0xFFFF;
+
     //clear the screen initially to set the background to black
     clear_screen();
 
