@@ -15,7 +15,10 @@ void clear_screen();
 void clear_line();
 void swap(int * x, int * y);
 void wait_state();
+void draw_screen();
 void draw_starting_menu();
+void draw_game_menu();
+void draw_score_menu();
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -35,21 +38,31 @@ struct colours colour = {0xFFFF, 0x0000, 0x555F, 0x58f5, 0x5FA5, 0xf500, 0xf888,
 
 //define the current state of the game
 struct game_data{
-enum current_state {start_menu, game_menu, score_menu};
-enum difficulty_level {easy, medium, hard, insane};
-//need to use switch case to determine what things to initialize according to states
-//depending on difficulty, tempo_multiplier 
-double difficulty_tempo_multiplier[4] = {1.0,1.5,2.0,3.0};
-//what is the song that the user will select
-enum current_song = {song_1,song_2,song_3,song_4};
-//each of the song names respectively
-char song_names[4][10] = {"song_1", "song_2", "song_3", "song_4"};
-//a vector of the song tempos for each song respectively
-double song_default_tempo[4] = {100,100,100,100};
-}
-//initialize the game data, defaults to start_menu, easy, song_1;
-struct game_data game_info = {start_menu, easy};
+    //0-> start menu, 2->game_menu, 3-> score menu
+    int current_state;
+    //1->easy, 2->medium, 3-> hard, 4-> insane
+    int difficulty_level;
+    //what is the song that the user will select
+    //1->song1,2->song2,3->song3,4->song4
+    int song_num;
+    //need to use switch case to determine what things to initialize according to states
+    //depending on difficulty, tempo_multiplier 
+    double difficulty_tempo_multiplier[4];
+    //each of the song names respectively
+    char song_names[4][30]; 
+    //a vector of the song tempos for each song respectively
+    double song_default_tempo[4];
+    int drop_speed;
 
+};
+//initialize the game data, defaults to start_menu, easy, song_1;
+struct game_data game_info = {.current_state = 0, 
+                            .difficulty_level = 1,
+                            .song_num = 1,
+                            .song_names = {"song_1", "song_2", "song_3", "song_4"},
+                            .song_default_tempo = {100,100,100,100}, 
+                            .difficulty_tempo_multiplier = {1.0,1.5,2.0,3.0},
+                            .drop_speed = 1 };
 
 int main(void){
 
@@ -60,16 +73,14 @@ int main(void){
     pixel_buffer_start = *pixel_ctrl_ptr;
 
     //keep the program running and prevent the program from ending
-    //animate the drawing
-    int ypos = 0;
-    int increment = 1;
-
     //clear the screen initially to set the background to black
     clear_screen();
 
+    //keep running
     while(true){
 
-    //draw whatever you want
+    //draw_whatever screen there is and update values accordingly;
+    draw_screen(game_info);
 
     wait_state();
 
@@ -89,9 +100,37 @@ int main(void){
 
 }
 
+void draw_screen(struct game_data game_info){
+    switch (game_info.current_state){
+        case 0:
+            draw_starting_menu();
+            break;
+        case 1:
+            draw_game_menu();
+            break;
+        case 2:
+            draw_score_menu();
+            break;
+        default:
+            draw_starting_menu(); 
+            break;
+    }
+}
+
 
 void draw_starting_menu(){
-    
+    //draw the starting menu for the user. buttons pressed on keyboard are used to select the difficulty
+    //keyboard numbers 1-4 used to select difficulty, 
+    //once difficulty is selected, it highlights/tells user that that difficulty was selected
+    //keyboard letter buttons q,w,e,r chose song 1, song2,song3,song4 respectively
+    //keyboard enter button starts the game.
+}
+void draw_game_menu(){
+
+}
+
+void draw_score_menu(){
+
 }
 
 void clear_line(int x1, int y1, int x2, int y2){
