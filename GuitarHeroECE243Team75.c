@@ -1,5 +1,5 @@
 //Guitar Hero Game
-//Vedant Prajapati 1005137610 & Katyln Khodwani
+//Vedant Prajapati 1005137610 & Katylnn Khodawandi
 
 
 //include boolean header library for true and false
