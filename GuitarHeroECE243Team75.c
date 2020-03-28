@@ -1,6 +1,9 @@
 //Guitar Hero Game
 //Vedant Prajapati 1005137610 & Katylnn Khodawandi
 
+//useful links:
+//drawing characters, and letters on screen: http://www-ug.eecg.utoronto.ca/desl/nios_devices_SoC/dev_vga.html *note the address is 0xc90000000
+//using the keyboard for input: http://www-ug.eecg.toronto.edu/msl/nios_devices/dev_ps2.html
 
 //include boolean header library for true and false
 #include <stdbool.h>
@@ -19,6 +22,9 @@ void draw_screen();
 void draw_starting_menu();
 void draw_game_menu();
 void draw_score_menu();
+void write_char(int x, int y, char c);
+void draw_tap_element(int x1,int x2, short int element_colour,char c); 
+void clear_text();
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -33,8 +39,6 @@ struct colours{
     short int yellow;
     short int grey;
 };
-//set respective colours to their valie
-struct colours colour = {0xFFFF, 0x0000, 0x555F, 0x58f5, 0x5FA5, 0xf500, 0xf888, 0xf833, 0xfff0, 0x2102};
 
 //define the current state of the game
 struct game_data{
@@ -54,48 +58,78 @@ struct game_data{
     double song_default_tempo[4];
     int drop_speed;
 
+    //can have up to 20 tap elements on the screen
+    int tap_element_x [30];
+    int tap_element_y [30];
+    char tap_element_char [31];
+
 };
 //initialize the game data, defaults to start_menu, easy, song_1;
-struct game_data game_info = {.current_state = 0, 
+struct game_data game_info = {
+                            .current_state = 0, 
                             .difficulty_level = 1,
                             .song_num = 1,
                             .song_names = {"song_1", "song_2", "song_3", "song_4"},
                             .song_default_tempo = {100,100,100,100}, 
                             .difficulty_tempo_multiplier = {1.0,1.5,2.0,3.0},
-                            .drop_speed = 1 };
+                            .drop_speed = 4, 
+                            .tap_element_x = 0,
+                            .tap_element_y = 0,
+                            .tap_element_char = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"};
+
+//set respective colours to their valie
+struct colours colour = {0xFFFF, 0x0000, 0x555F, 0x58f5, 0x5FA5, 0xf500, 0xf888, 0xf833, 0xfff0, 0x2102};
 
 int main(void){
 
     //pointer to the pixel controller address
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    
+    volatile char * character_buffer = (char *) (0x09000000);
     /* Read location of the pixel buffer from the pixel buffer controller */
     pixel_buffer_start = *pixel_ctrl_ptr;
 
     //keep the program running and prevent the program from ending
     //clear the screen initially to set the background to black
-    clear_screen();
+    plot_pixel(0,0,colour.grey);
+
+    *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the back buffer
+
+    /* now, swap the front/back buffers, to set the front buffer location */
+    wait_state();
+    
+    /* initialize a pointer to the pixel buffer, used by drawing functions */
+    pixel_buffer_start = *pixel_ctrl_ptr;
+    clear_screen(); // pixel_buffer_start points to the pixel buffer
+
+    /* set back pixel buffer to start of SDRAM memory */
+    *(pixel_ctrl_ptr + 1) = 0xC0000000;
+    pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
+    
+    //FOR TESTING
+    game_info.tap_element_x[0] = 20;
+    char* read_char = &game_info.tap_element_char[0];//to read a character from the list of tap elements, input a pointer to draw_tap_element
 
     //keep running
     while(true){
+        clear_screen();
+        //draw_whatever screen there is and update values accordingly;
+        // draw_screen(game_info);
+        draw_tap_element(game_info.tap_element_x[0], game_info.tap_element_y[0], colour.yellow, *read_char);
 
-    //draw_whatever screen there is and update values accordingly;
-    draw_screen(game_info);
-
-    wait_state();
-
-    clear_screen();
         
-    pixel_buffer_start = *pixel_ctrl_ptr;
+        //change the the value of y pos to make the pixels to animate
+        if (game_info.tap_element_y[0]>=235)
+            game_info.tap_element_y[0] = 0;
+        
+        game_info.tap_element_y[0] = game_info.tap_element_y[0] + game_info.drop_speed;   
 
-    //change the the value of y pos to make the pixels to animate
-    // if (ypos==0)
-    //     increment = 1;
-    // if (ypos==239)
-    //     increment = (-1);
-    
-    // ypos = ypos + increment;    
+        //wait and swap front and back bufferes for vsync   
+        wait_state();
+
+        //set new back buffer
+        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
     }
+
     return 0;
 
 }
@@ -117,6 +151,30 @@ void draw_screen(struct game_data game_info){
     }
 }
 
+//draw a box named tap element that contains the character
+void draw_tap_element(int x1, int y1, short int element_colour, char c){
+    //top line
+    draw_line(x1, y1, x1+4, y1,element_colour);
+    // //bottom line
+    draw_line(x1, y1 + 4, x1 + 4, y1 + 4 , element_colour);
+    // //right line
+    draw_line(x1, y1, x1, y1 + 4 ,element_colour);
+    // //left line
+    draw_line(x1 + 4, y1, x1 + 4, y1+4, element_colour);
+    //write the specified character
+    write_char(x1 / 4, y1 / 4,c);
+
+    
+}
+
+/* write a single character to the character buffer at x,y
+ * x in [0,79], y in [0,59]
+ */
+void write_char(int x, int y, char c) {
+  // VGA character buffer
+  volatile char * character_buffer = (char *) (0xC9000000 + (y<<7) + x);
+  *character_buffer = c;
+}
 
 void draw_starting_menu(){
     //draw the starting menu for the user. buttons pressed on keyboard are used to select the difficulty
@@ -125,6 +183,7 @@ void draw_starting_menu(){
     //keyboard letter buttons q,w,e,r chose song 1, song2,song3,song4 respectively
     //keyboard enter button starts the game.
 }
+
 void draw_game_menu(){
 
 }
@@ -133,8 +192,9 @@ void draw_score_menu(){
 
 }
 
+
 void clear_line(int x1, int y1, int x2, int y2){
-    draw_line(x1, y1, x2, y2, 0x000);
+    draw_line(x1, y1, x2, y2, 0x0000);
 }
 
 void wait_state(){
@@ -224,9 +284,16 @@ void clear_screen(){
     for (x = 0; x < 320; x++)
 		for (y = 0; y < 240; y++)
 			plot_pixel(x, y, 0x0000);	
-
+    clear_text();
 }
 
+void clear_text(){
+    for (int x=0;x<80;x++){
+        for(int y=0; y<60; y++){
+            write_char(x,y,"\0");
+        }
+    }
+}
 //Function that plots a pixel on the VGA Display
 void plot_pixel(int x, int y, short int line_color){
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
