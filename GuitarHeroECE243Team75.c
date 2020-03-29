@@ -7,9 +7,71 @@
 
 //include boolean header library for true and false
 #include <stdbool.h>
+#include <string.h>
 
-//pixel_buffer_start points to the pixel buffer address
-volatile int pixel_buffer_start; 
+//address_map.h header file
+/* This files provides address values that exist in the system */
+
+#define BOARD                 "DE1-SoC"
+
+/* Memory */
+#define DDR_BASE              0x00000000
+#define DDR_END               0x3FFFFFFF
+#define A9_ONCHIP_BASE        0xFFFF0000
+#define A9_ONCHIP_END         0xFFFFFFFF
+#define SDRAM_BASE            0xC0000000
+#define SDRAM_END             0xC3FFFFFF
+#define FPGA_ONCHIP_BASE      0xC8000000
+#define FPGA_ONCHIP_END       0xC803FFFF
+#define FPGA_CHAR_BASE        0xC9000000
+#define FPGA_CHAR_END         0xC9001FFF
+
+/* Cyclone V FPGA devices */
+#define LEDR_BASE             0xFF200000
+#define HEX3_HEX0_BASE        0xFF200020
+#define HEX5_HEX4_BASE        0xFF200030
+#define SW_BASE               0xFF200040
+#define KEY_BASE              0xFF200050
+#define JP1_BASE              0xFF200060
+#define JP2_BASE              0xFF200070
+#define PS2_BASE              0xFF200100
+#define PS2_DUAL_BASE         0xFF200108
+#define JTAG_UART_BASE        0xFF201000
+#define JTAG_UART_2_BASE      0xFF201008
+#define IrDA_BASE             0xFF201020
+#define TIMER_BASE            0xFF202000
+#define AV_CONFIG_BASE        0xFF203000
+#define PIXEL_BUF_CTRL_BASE   0xFF203020
+#define CHAR_BUF_CTRL_BASE    0xFF203030
+#define AUDIO_BASE            0xFF203040
+#define VIDEO_IN_BASE         0xFF203060
+#define ADC_BASE              0xFF204000
+
+/* Cyclone V HPS devices */
+#define HPS_GPIO1_BASE        0xFF709000
+#define HPS_TIMER0_BASE       0xFFC08000
+#define HPS_TIMER1_BASE       0xFFC09000
+#define HPS_TIMER2_BASE       0xFFD00000
+#define HPS_TIMER3_BASE       0xFFD01000
+#define FPGA_BRIDGE           0xFFD0501C
+
+/* ARM A9 MPCORE devices */
+#define   PERIPH_BASE         0xFFFEC000    // base address of peripheral devices
+#define   MPCORE_PRIV_TIMER   0xFFFEC600    // PERIPH_BASE + 0x0600
+
+/* Interrupt controller (GIC) CPU interface(s) */
+#define MPCORE_GIC_CPUIF      0xFFFEC100    // PERIPH_BASE + 0x100
+#define ICCICR                0x00          // offset to CPU interface control reg
+#define ICCPMR                0x04          // offset to interrupt priority mask reg
+#define ICCIAR                0x0C          // offset to interrupt acknowledge reg
+#define ICCEOIR               0x10          // offset to end of interrupt reg
+/* Interrupt controller (GIC) distributor interface(s) */
+#define MPCORE_GIC_DIST       0xFFFED000    // PERIPH_BASE + 0x1000
+#define ICDDCR                0x00          // offset to distributor control reg
+#define ICDISER               0x100         // offset to interrupt set-enable regs
+#define ICDICER               0x180         // offset to interrupt clear-enable regs
+#define ICDIPTR               0x800         // offset to interrupt processor targets regs
+#define ICDICFR               0xC00         // offset to interrupt configuration regs
 
 //initiallize functions to be used in main
 void plot_pixel(int x1,int y1, short int pixel_colour);
@@ -26,6 +88,7 @@ void write_char(int x, int y, char c);
 void draw_tap_element(int x1,int x2, short int element_colour,char c); 
 void clear_text();
 void draw_string(int x, int y, char string_name []);
+size_t strlen(const char *s);
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -67,9 +130,9 @@ struct game_data{
 };
 //initialize the game data, defaults to start_menu, easy, song_1;
 struct game_data game_info = {
-                            .current_state = 0, 
-                            .difficulty_level = 1,
-                            .song_num = 1,
+                            0, 
+                            1,
+                            1,
                             .song_names = {"song_1", "song_2", "song_3", "song_4"},
                             .song_default_tempo = {100,100,100,100}, 
                             .difficulty_tempo_multiplier = {1.0,1.5,2.0,3.0},
@@ -78,14 +141,17 @@ struct game_data game_info = {
                             .tap_element_y = 0,
                             .tap_element_char = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"};
 
-//set respective colours to their valie
+//set respective colours to their value
 struct colours colour = {0xFFFF, 0x0000, 0x555F, 0x58f5, 0x5FA5, 0xf500, 0xf888, 0xf833, 0xfff0, 0x2102};
+
+//pixel_buffer_start points to the pixel buffer address
+volatile int pixel_buffer_start; 
 
 int main(void){
 
     //pointer to the pixel controller address
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    volatile char * character_buffer = (char *) (0x09000000);
+    volatile char * character_buffer = (char *) (0xc9000000);
     /* Read location of the pixel buffer from the pixel buffer controller */
     pixel_buffer_start = *pixel_ctrl_ptr;
 
@@ -111,14 +177,16 @@ int main(void){
     game_info.tap_element_x[0] = 4 * column;
     char* read_char = &game_info.tap_element_char[0];//to read a character from the list of tap elements, input a pointer to draw_tap_element
 
+    //current state of the game start, game, or score
+    game_info.current_state =2;
     //keep running
     while(true){
         clear_screen();
         //draw_whatever screen there is and update values accordingly;
         // draw_screen(game_info);
         draw_tap_element(game_info.tap_element_x[0], game_info.tap_element_y[0], colour.yellow, *read_char);
-
-        draw_game_menu();
+    
+        draw_screen(game_info);
         
         //change the the value of y pos to make the pixels to animate
         if (game_info.tap_element_y[0]>=235)
@@ -139,13 +207,13 @@ int main(void){
 
 void draw_screen(struct game_data game_info){
     switch (game_info.current_state){
-        case 0:
+        case 1:
             draw_starting_menu();
             break;
-        case 1:
+        case 2:
             draw_game_menu();
             break;
-        case 2:
+        case 3:
             draw_score_menu();
             break;
         default:
@@ -174,7 +242,7 @@ void draw_tap_element(int x1, int y1, short int element_colour, char c){
  */
 void write_char(int x, int y, char c) {
   // VGA character buffer
-  volatile char * character_buffer = (char *) (0xC9000000 + (y<<7) + x);
+  volatile char * character_buffer = (char *) (0xc9000000 + (y<<7) + x);
   *character_buffer = c;
 }
 
@@ -188,29 +256,23 @@ void draw_starting_menu(){
 
 void draw_game_menu(){
 
+    int left_end = 43 + 4;
+    int right_end = 279 -4;
+    int top_limit = 0;
+    int bottom_limit = 239;
     //draw edge borders
-    draw_line(39 + 4, 0, 39 + 4, 239,colour.orange);
-    draw_line(319-40 - 4 , 0, 319-40 - 4 , 239,colour.orange);
+    draw_line(left_end, top_limit, left_end, bottom_limit,colour.orange);
+    draw_line(right_end, top_limit, right_end, bottom_limit,colour.orange);
 
     //draw the purple bars
-    draw_line(39 + 5,239 - 16 , 319-40 - 5, 239 - 16, colour.purple );
-    draw_line(39 + 5,239 - 12 , 319-40 - 5, 239 - 12, colour.purple );
+    draw_line(left_end + 1, bottom_limit - 16 , right_end - 1, bottom_limit - 16, colour.purple );
+    draw_line(left_end + 1, bottom_limit - 12 , right_end - 1, bottom_limit - 12, colour.purple );
 
     //draw the tap element columns
-    draw_line(39 + 4 + (1*6*4), 0, 39 + 4 + (1*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 4 + (2*6*4), 0, 39 + 4 + (2*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 4 + (3*6*4), 0, 39 + 4 + (3*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 4 + (4*6*4), 0, 39 + 4 + (4*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 4 + (5*6*4), 0, 39 + 4 + (5*6*4), 239 - 12,colour.grey);
-
-    draw_line(39 + 8 + (1*6*4), 0, 39 + 8 + (1*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 8 + (2*6*4), 0, 39 + 8 + (2*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 8 + (3*6*4), 0, 39 + 8 + (3*6*4), 239 - 12,colour.grey);
-    draw_line(39 + 8 + (4*6*4), 0, 39 + 8 + (4*6*4), 239 - 12,colour.grey);
-    //draw_line(39 + 8 + (5*6*4), 0, 39 + 8 + (5*6*4), 239 - 12,colour.grey);
-    //int x = 200;
-    //draw_line(x,0,x,239,colour.pink);
-
+    for (int i =1; i<6; i ++){
+        draw_line(left_end + 9*4*i, top_limit, left_end + 9*4*i, bottom_limit - 12, colour.grey);
+        draw_line(left_end + 9*4*i + 4, top_limit, left_end + 9*4*i + 4, bottom_limit - 12, colour.grey);
+    }
     //draw the menu name
     char menu_name[] = "Game Menu";
     draw_string(1, 1, menu_name);
@@ -318,16 +380,20 @@ void clear_screen(){
 	int y;
 	
     //go over each pixel in the vga display and set the colour of the pixel to black
-    for (x = 0; x < 320; x++)
-		for (y = 0; y < 240; y++)
-			plot_pixel(x, y, 0x0000);	
-    clear_text();
+    for (x = 0; x < 320; x++){
+		for (y = 0; y < 240; y++){
+			plot_pixel(x, y, 0x0000);
+        }
+    }
+
+     clear_text();
 }
 
 void clear_text(){
+    char *empty_char = "\0";
     for (int x=0;x<80;x++){
         for(int y=0; y<60; y++){
-            write_char(x,y,"\0");
+            write_char(x,y,*empty_char);
         }
     }
 }
