@@ -85,9 +85,10 @@ void draw_starting_menu();
 void draw_game_menu();
 void draw_score_menu();
 void write_char(int x, int y, char c);
-void draw_tap_element(int x1,int x2, short int element_colour,char c); 
+void draw_tap_element(int x1,int x2, short int element_colour); 
 void clear_text();
 void draw_string(int x, int y, char string_name []);
+void play_game(int upper_bound);
 size_t strlen(const char *s);
 
 //structure containing each colour value so that it is easier to draw images
@@ -122,38 +123,65 @@ struct game_data{
     double song_default_tempo[4];
     int drop_speed;
 
-    //can have up to 20 tap elements on the screen
-    int tap_element_x [30];
-    int tap_element_y [30];
-    char tap_element_char [31];
+    //can have up to 50 tap elements on the screen
+    int tap_element_x [50];
+    int tap_element_y [50];
+    int tap_element_int [50];
 
+    //rate of timer
+    int timer_rate;// timeout = 1/(200 MHz) x 200x10^6 = 1 sec
+    int positions [5];
+    short int tap_element_colours[5];
 };
+
 //initialize the game data, defaults to start_menu, easy, song_1;
 struct game_data game_info = {
-                            0, 
-                            1,
-                            1,
+                            .current_state = 0, 
+                            .difficulty_level = 1,
+                            .song_num = 1,
                             .song_names = {"song_1", "song_2", "song_3", "song_4"},
                             .song_default_tempo = {100,100,100,100}, 
                             .difficulty_tempo_multiplier = {1.0,1.5,2.0,3.0},
                             .drop_speed = 4, 
                             .tap_element_x = 0,
                             .tap_element_y = 0,
-                            .tap_element_char = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"};
+                            .tap_element_int = 0,
+                            .timer_rate = 200000000,
+                            .positions = {(43 + 4 + 9*4*1) , (43 + 4 + 9*4*2), (43 + 4 + 9*4*3), (43 + 4 + 9*4*4), (43 + 4 + 9*4*5) },
+                            //blue, green, red, yellow, pink
+                            .tap_element_colours = {0x555F, 0x5FA5, 0xf888,0xfff0,0xf833}
+                            };
 
 //set respective colours to their value
-struct colours colour = {0xFFFF, 0x0000, 0x555F, 0x58f5, 0x5FA5, 0xf500, 0xf888, 0xf833, 0xfff0, 0x2102};
+struct colours colour = {
+                        .white = 0xFFFF,
+                        .black = 0x0000,
+                        .blue = 0x555F,
+                        .purple = 0x58f5, 
+                        .green = 0x5FA5, 
+                        .orange = 0xf500, 
+                        .red = 0xf888, 
+                        .pink = 0xf833, 
+                        .yellow = 0xfff0, 
+                        .grey = 0x2102};
 
 //pixel_buffer_start points to the pixel buffer address
 volatile int pixel_buffer_start; 
+volatile int * pixel_ctrl_ptr;
+//timer
+volatile int * MPcore_private_timer_ptr = (int *)MPCORE_PRIV_TIMER;
+
 
 int main(void){
-
     //pointer to the pixel controller address
-    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+    pixel_ctrl_ptr = (int *)0xFF203020;
     volatile char * character_buffer = (char *) (0xc9000000);
     /* Read location of the pixel buffer from the pixel buffer controller */
     pixel_buffer_start = *pixel_ctrl_ptr;
+    
+    //enable timer
+    *(MPcore_private_timer_ptr) = game_info.timer_rate; // write to timer load register
+    *(MPcore_private_timer_ptr + 2) = 0b011; // mode = 1 (auto), enable = 1
 
     //keep the program running and prevent the program from ending
     //clear the screen initially to set the background to black
@@ -172,20 +200,14 @@ int main(void){
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
     
-    //FOR TESTING
-    int column = 15;
-    game_info.tap_element_x[0] = 4 * column;
-    char* read_char = &game_info.tap_element_char[0];//to read a character from the list of tap elements, input a pointer to draw_tap_element
-
-    //current state of the game start, game, or score
+    
+    //For testing its set to 2, current state of the game start, game, or score
     game_info.current_state =2;
+    
     //keep running
     while(true){
         clear_screen();
         //draw_whatever screen there is and update values accordingly;
-        // draw_screen(game_info);
-        draw_tap_element(game_info.tap_element_x[0], game_info.tap_element_y[0], colour.yellow, *read_char);
-    
         draw_screen(game_info);
         
         //change the the value of y pos to make the pixels to animate
@@ -223,7 +245,7 @@ void draw_screen(struct game_data game_info){
 }
 
 //draw a box named tap element that contains the character
-void draw_tap_element(int x1, int y1, short int element_colour, char c){
+void draw_tap_element(int x1, int y1, short int element_colour){
     //top line
     draw_line(x1, y1, x1+4, y1,element_colour);
     // //bottom line
@@ -232,8 +254,6 @@ void draw_tap_element(int x1, int y1, short int element_colour, char c){
     draw_line(x1, y1, x1, y1 + 4 ,element_colour);
     // //left line
     draw_line(x1 + 4, y1, x1 + 4, y1+4, element_colour);
-    //write the specified character
-    write_char(x1 / 4, y1 / 4,c);
     
 }
 
@@ -256,27 +276,88 @@ void draw_starting_menu(){
 
 void draw_game_menu(){
 
-    int left_end = 43 + 4;
-    int right_end = 279 -4;
-    int top_limit = 0;
-    int bottom_limit = 239;
-    //draw edge borders
-    draw_line(left_end, top_limit, left_end, bottom_limit,colour.orange);
-    draw_line(right_end, top_limit, right_end, bottom_limit,colour.orange);
+    int num_elements = 0;
 
-    //draw the purple bars
-    draw_line(left_end + 1, bottom_limit - 16 , right_end - 1, bottom_limit - 16, colour.purple );
-    draw_line(left_end + 1, bottom_limit - 12 , right_end - 1, bottom_limit - 12, colour.purple );
+    bool game_complete = false;
+    while (game_complete == false){
+        clear_screen();
 
-    //draw the tap element columns
-    for (int i =1; i<6; i ++){
-        draw_line(left_end + 9*4*i, top_limit, left_end + 9*4*i, bottom_limit - 12, colour.grey);
-        draw_line(left_end + 9*4*i + 4, top_limit, left_end + 9*4*i + 4, bottom_limit - 12, colour.grey);
+        int left_end = 43 + 4;
+        int right_end = 279 -4;
+        int top_limit = 0;
+        int bottom_limit = 239;
+        //draw edge borders
+        draw_line(left_end, top_limit, left_end, bottom_limit,colour.orange);
+        draw_line(right_end, top_limit, right_end, bottom_limit,colour.orange);
+
+        //draw the purple bars
+        draw_line(left_end + 1, bottom_limit - 16 , right_end - 1, bottom_limit - 16, colour.purple );
+        draw_line(left_end + 1, bottom_limit - 12 , right_end - 1, bottom_limit - 12, colour.purple );
+
+        //draw the tap element columns
+        for (int i =1; i<6; i ++){
+            draw_line(left_end + 9*4*i, top_limit, left_end + 9*4*i, bottom_limit - 12, colour.grey);
+            draw_line(left_end + 9*4*i + 4, top_limit, left_end + 9*4*i + 4, bottom_limit - 12, colour.grey);
+        }
+        //draw the menu name
+        char menu_name[] = "Game Menu";
+        draw_string(1, 1, menu_name);
+
+        char one[] = "1";
+        char two[] = "2";
+        char three[] = "3";
+        char four[] = "4";
+        char five[] = "5";
+        draw_string((game_info.positions[0])/4 + 1, (bottom_limit - 12)/4, one);
+        draw_string((game_info.positions[1])/4 + 1, (bottom_limit - 12)/4, two);
+        draw_string((game_info.positions[2])/4 + 1, (bottom_limit - 12)/4, three);
+        draw_string((game_info.positions[3])/4 + 1, (bottom_limit - 12)/4, four);
+        draw_string((game_info.positions[4])/4 + 1, (bottom_limit - 12)/4, five);
+
+        play_game(num_elements);
+        if(num_elements<50) 
+            num_elements ++;
+
+        wait_state();
+        //set new back buffer
+        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+
+        
     }
-    //draw the menu name
-    char menu_name[] = "Game Menu";
-    draw_string(1, 1, menu_name);
+}
 
+void play_game(int upper_bound){
+
+    while (*(MPcore_private_timer_ptr + 3) == 0){
+        //set new back buffer
+        // pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+            ; // wait for timer to expire
+        }
+    *(MPcore_private_timer_ptr + 3) = 1; // reset timer flag bit
+    int random_init = 0;
+    for(int k = 0; k < upper_bound + 1; k++){
+        if(game_info.tap_element_x[k] == 0){
+            //1/20 chance of adding new element
+            if (rand()%(20/game_info.difficulty_level) + 1 == 1){
+                random_init = rand() % 5;
+                game_info.tap_element_x[k] = game_info.positions[random_init];
+                game_info.tap_element_y[k] = 0;
+                game_info.tap_element_int[k] = random_init;
+                break;
+            }   
+        }
+    }
+    for (int k =0; k < upper_bound + 1; k++){
+        if(game_info.tap_element_y[k] <= 239-8 && game_info.tap_element_x[k] != 0){
+            draw_tap_element(game_info.tap_element_x[k],game_info.tap_element_y[k],game_info.tap_element_colours[game_info.tap_element_int[k]]);
+            game_info.tap_element_y[k] += 4;
+        }
+        else{
+            game_info.tap_element_y[k] = 0;
+            game_info.tap_element_x[k] = 0;
+        }
+    }   
+    
 }
 
 void draw_score_menu(){
