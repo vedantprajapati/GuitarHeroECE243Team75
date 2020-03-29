@@ -25,6 +25,7 @@ void draw_score_menu();
 void write_char(int x, int y, char c);
 void draw_tap_element(int x1,int x2, short int element_colour,char c); 
 void clear_text();
+void draw_string(int x, int y, char string_name []);
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -106,7 +107,8 @@ int main(void){
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
     
     //FOR TESTING
-    game_info.tap_element_x[0] = 20;
+    int column = 15;
+    game_info.tap_element_x[0] = 4 * column;
     char* read_char = &game_info.tap_element_char[0];//to read a character from the list of tap elements, input a pointer to draw_tap_element
 
     //keep running
@@ -116,6 +118,7 @@ int main(void){
         // draw_screen(game_info);
         draw_tap_element(game_info.tap_element_x[0], game_info.tap_element_y[0], colour.yellow, *read_char);
 
+        draw_game_menu();
         
         //change the the value of y pos to make the pixels to animate
         if (game_info.tap_element_y[0]>=235)
@@ -163,7 +166,6 @@ void draw_tap_element(int x1, int y1, short int element_colour, char c){
     draw_line(x1 + 4, y1, x1 + 4, y1+4, element_colour);
     //write the specified character
     write_char(x1 / 4, y1 / 4,c);
-
     
 }
 
@@ -186,12 +188,47 @@ void draw_starting_menu(){
 
 void draw_game_menu(){
 
+    //draw edge borders
+    draw_line(39 + 4, 0, 39 + 4, 239,colour.orange);
+    draw_line(319-40 - 4 , 0, 319-40 - 4 , 239,colour.orange);
+
+    //draw the purple bars
+    draw_line(39 + 5,239 - 16 , 319-40 - 5, 239 - 16, colour.purple );
+    draw_line(39 + 5,239 - 12 , 319-40 - 5, 239 - 12, colour.purple );
+
+    //draw the tap element columns
+    draw_line(39 + 4 + (1*6*4), 0, 39 + 4 + (1*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 4 + (2*6*4), 0, 39 + 4 + (2*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 4 + (3*6*4), 0, 39 + 4 + (3*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 4 + (4*6*4), 0, 39 + 4 + (4*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 4 + (5*6*4), 0, 39 + 4 + (5*6*4), 239 - 12,colour.grey);
+
+    draw_line(39 + 8 + (1*6*4), 0, 39 + 8 + (1*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 8 + (2*6*4), 0, 39 + 8 + (2*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 8 + (3*6*4), 0, 39 + 8 + (3*6*4), 239 - 12,colour.grey);
+    draw_line(39 + 8 + (4*6*4), 0, 39 + 8 + (4*6*4), 239 - 12,colour.grey);
+    //draw_line(39 + 8 + (5*6*4), 0, 39 + 8 + (5*6*4), 239 - 12,colour.grey);
+    //int x = 200;
+    //draw_line(x,0,x,239,colour.pink);
+
+    //draw the menu name
+    char menu_name[] = "Game Menu";
+    draw_string(1, 1, menu_name);
+
 }
 
 void draw_score_menu(){
 
 }
 
+void draw_string(int x, int y, char string_name []){
+    char * iterate;
+    for (int i =0; i <strlen(string_name); i++){
+		iterate = &string_name[i];
+		write_char(x,y,*iterate);
+        x++;
+    }
+}
 
 void clear_line(int x1, int y1, int x2, int y2){
     draw_line(x1, y1, x2, y2, 0x0000);
