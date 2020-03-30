@@ -238,7 +238,8 @@ int main(void){
     
     
     //For testing its set to 2, current state of the game start, game, or score
-    game_info.current_state =2;
+    // KK: changed this to start at 1, moves to 2 once enter button pressed 
+    game_info.current_state =1;
     
     //keep running
     while(true){
@@ -306,55 +307,93 @@ void draw_starting_menu(){
 
     // Main header - game title 
 	char game_name[] = "* Guitar Hero *"; 
-	
-	draw_string(1, 1, game_name); 
-	draw_line(0, 10, 319, 10, colour.orange);
-    
+
     //keyboard numbers 1-4 used to select difficulty,
     char game_difficulty[] = "Select a difficulty level:";
 	char diff_easy[] = "1 = Easy"; 
     char diff_med[] = "2 = Medium ";
 	char diff_hard[] = "3 = Hard"; 
 	char diff_expert[] = "4 = Expert"; 
-	
-	draw_string(1, 6, game_difficulty); 
-    draw_line(0, 30, 319, 30, colour.green);
-	draw_string(1, 10, diff_easy);
-	draw_string(1, 12, diff_med);
-	draw_string(1, 14, diff_hard);
-	draw_string(1, 16, diff_expert); 
 
-	
-    //Select song using letter buttons q,w,e,r 
-	char song_choice[] = "Select a song:";
+    // keyboard letters used to select song
+    char song_choice[] = "Select a song:";
 	char song_1[] = "Q = Song 1"; 
     char song_2[] = "W = Song 2";
 	char song_3[] = "E = Song 3"; 
 	char song_4[] = "R = Song 4";
 
-    draw_string(1, 21, song_choice); 
-    draw_line(0, 90, 319, 90, colour.blue);
-	draw_string(1, 25, song_1);
-	draw_string(1, 27, song_2);
-	draw_string(1, 29, song_3);
-	draw_string(1, 31, song_4);
-
-    // to show user what they selected 
-	char sel_diff[] = "Difficulty level selected:";
-	draw_string(1, 36, sel_diff);
-	draw_line(0, 150, 319, 150, colour.purple);
-	// where we show the selected difficulty 
-	
-	char song_sel[] = "Song selected:"; 
-	draw_string(1,42, song_sel); 
-	draw_line(0, 175, 319, 175, colour.purple);
-	// where we show the selected song 
+    // headings to show user selected song and difficulty level
+    char sel_diff[] = "Difficulty level selected:";
+    char song_sel[] = "Song selected:"; 
 
     //keyboard enter button starts the game.
     char start_game[] = "Press Enter when ready to start."; 
-    draw_line(0, 194, 319, 194, colour.yellow);
-    draw_string(1, 49, start_game); 
-    draw_line(0, 202, 319, 202, colour.yellow); 
+	
+
+    while (game_info.current_state == 1) { 
+        clear_screen(); 
+        
+        // draw header 
+        draw_string(1, 1, game_name); 
+        draw_line(0, 10, 319, 10, colour.orange);
+
+        // draw difficulty options 
+        draw_string(1, 6, game_difficulty); 
+        draw_line(0, 30, 319, 30, colour.green);
+        draw_string(1, 10, diff_easy);
+        draw_string(1, 12, diff_med);
+        draw_string(1, 14, diff_hard);
+        draw_string(1, 16, diff_expert); 
+
+        // draw song options 
+        draw_string(1, 21, song_choice); 
+        draw_line(0, 90, 319, 90, colour.blue);
+        draw_string(1, 25, song_1);
+        draw_string(1, 27, song_2);
+        draw_string(1, 29, song_3);
+        draw_string(1, 31, song_4);
+
+        // to show user selected difficulty 
+        draw_string(1, 36, sel_diff);
+        draw_line(0, 150, 319, 150, colour.purple);
+        // where to show the selected difficulty 
+        if (game_info.difficulty_level == 1){
+            draw_string(1, 38, diff_easy); 
+        }
+        else if (game_info.difficulty_level ==2){
+            draw_string(1,38, diff_med);
+        }
+        else if (game_info.difficulty_level ==3){
+            draw_string(1,38, diff_hard); 
+        }
+        else if (game_info.difficulty_level ==4){
+            draw_string(1,38, diff_expert);
+        }
+        
+        // to show user selected song 
+        draw_string(1,42, song_sel); 
+        draw_line(0, 175, 319, 175, colour.purple);
+        // where to show the selected song 
+        if (game_info.song_num == 1){
+            draw_string(1,44,song_1);
+        }
+        else if (game_info.song_num == 2){
+            draw_string(1,44,song_2);
+        }
+        else if (game_info.song_num == 3){
+            draw_string(1,44,song_3);
+        }
+        else if (game_info.song_num == 4){
+            draw_string(1,44,song_4);
+        }
+
+        // heading to tell user how to start game 
+        draw_line(0, 194, 319, 194, colour.yellow);
+        draw_string(1, 49, start_game); 
+        draw_line(0, 202, 319, 202, colour.yellow);
+
+        read_keyboard(); 
+    } 
 }
 
 void draw_game_menu(){
@@ -583,13 +622,7 @@ void read_keyboard(){
 	unsigned char byte2 = 0;
 	unsigned char byte3 = 0;
 
-    // booleans used to check when user input has been gathered 
-    int done = 0; 
-    int found_diff = 0;
-    int found_song = 0; 
-    int enter_game = 0; 
-
-    while (!done) {
+     while (1) {
 
         PS2_data = *(PS2_ptr); 
         RVALID = (PS2_data & 0x8000); 
@@ -599,45 +632,56 @@ void read_keyboard(){
 			byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
         } 
-
+		// 1 pressed for easy 
         if (byte3 == N_1){
             game_info.difficulty_level = 1;
-            found_diff=1; 
+			break;
         }
+		// 2 pressed for medium
         else if (byte3 == N_2){
             game_info.difficulty_level = 2;
-            found_diff=1; 
+			break;
         }
+		// 3 pressed for hard
         else if (byte3 == N_3){
             game_info.difficulty_level = 3;
-            found_diff=1; 
+			break;
         }
+		// 4 pressed for expert
         else if (byte3 == N_4){
             game_info.difficulty_level = 4;
-            found_diff=1;  
+			break;
         }
+		// Q pressed for song 1
         else if (byte3 == Q){
             game_info.song_num = 1;
-            found_song=1; 
+			break;
         }
+		// W pressed for song 2
         else if (byte3 == W){
-            game_info.song_num = 2;
-            found_song=1; 
+            game_info.song_num = 2; 
+			break;
         }
+		// E pressed for song 3
         else if (byte3 == E){
             game_info.song_num = 3;
-            found_song=1; 
+			break;
         }
+		// R pressed for song 4
         else if (byte3 == R){
             game_info.song_num = 4;
-            found_song=1;  
+			break;
         }
+		// enter pressed to start game 
+		else if (byte3 == ENTER){
+			//done_setup=true;
+			game_info.current_state = 2; // is this what we want here? 
+			break;
+		}
         else {
             // default case? 
         }
-
-    done = found_diff & found_song; // only exit once song and difficulty selected 
-    }
+	}
 }
 
 
