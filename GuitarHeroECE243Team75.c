@@ -267,11 +267,58 @@ void write_char(int x, int y, char c) {
 }
 
 void draw_starting_menu(){
-    //draw the starting menu for the user. buttons pressed on keyboard are used to select the difficulty
-    //keyboard numbers 1-4 used to select difficulty, 
-    //once difficulty is selected, it highlights/tells user that that difficulty was selected
-    //keyboard letter buttons q,w,e,r chose song 1, song2,song3,song4 respectively
+
+    // Main header - game title 
+	char game_name[] = "* Guitar Hero *"; 
+	
+	draw_string(1, 1, game_name); 
+	draw_line(0, 10, 319, 10, colour.orange);
+    
+    //keyboard numbers 1-4 used to select difficulty,
+    char game_difficulty[] = "Select a difficulty level:";
+	char diff_easy[] = "1 = Easy"; 
+    char diff_med[] = "2 = Medium ";
+	char diff_hard[] = "3 = Hard"; 
+	char diff_expert[] = "4 = Expert"; 
+	
+	draw_string(1, 6, game_difficulty); 
+    draw_line(0, 30, 319, 30, colour.green);
+	draw_string(1, 10, diff_easy);
+	draw_string(1, 12, diff_med);
+	draw_string(1, 14, diff_hard);
+	draw_string(1, 16, diff_expert); 
+
+	
+    //Select song using letter buttons q,w,e,r 
+	char song_choice[] = "Select a song:";
+	char song_1[] = "Q = Song 1"; 
+    char song_2[] = "W = Song 2";
+	char song_3[] = "E = Song 3"; 
+	char song_4[] = "R = Song 4";
+
+    draw_string(1, 21, song_choice); 
+    draw_line(0, 90, 319, 90, colour.blue);
+	draw_string(1, 25, song_1);
+	draw_string(1, 27, song_2);
+	draw_string(1, 29, song_3);
+	draw_string(1, 31, song_4);
+
+    // to show user what they selected 
+	char sel_diff[] = "Difficulty level selected:";
+	draw_string(1, 36, sel_diff);
+	draw_line(0, 150, 319, 150, colour.purple);
+	// where we show the selected difficulty 
+	
+	char song_sel[] = "Song selected:"; 
+	draw_string(1,42, song_sel); 
+	draw_line(0, 175, 319, 175, colour.purple);
+	// where we show the selected song 
+
     //keyboard enter button starts the game.
+    char start_game[] = "Press Enter when ready to start."; 
+    draw_line(0, 194, 319, 194, colour.yellow);
+    draw_string(1, 49, start_game); 
+    draw_line(0, 202, 319, 202, colour.yellow); 
 }
 
 void draw_game_menu(){
