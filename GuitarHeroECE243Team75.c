@@ -85,10 +85,10 @@
 #define ENTER	0x5A 
 #define SPACE	0x29 
 
-#define KEY0    0x1;
-#define KEY1    0x2;
-#define KEY2    0x4;
-#define KEY3    0x8;
+#define KEY0    0x1
+#define KEY1    0x2
+#define KEY2    0x4
+#define KEY3    0x8
 
 //initialize functions to be used in main
 void plot_pixel(int x1,int y1, short int pixel_colour);
@@ -108,16 +108,8 @@ void draw_string(int x, int y, char string_name []);
 void play_game(int upper_bound);
 size_t strlen(const char *s);
 
-void config_keyboard();
-void config_keys(); 
-void keyboard_ISR();
-void keys_ISR(); 
-void config_GIC(); 
-
-char ps2_byte_1 = 0;
-char ps2_byte_2 = 0;
-char ps2_byte_3 = 0;
-
+void read_keyboard();
+void read_KEYS(); 
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -191,8 +183,8 @@ struct colours colour = {
                         .red = 0xf888, 
                         .pink = 0xf833, 
                         .yellow = 0xfff0, 
-                        .grey = 0x2102};
-};
+                        .grey = 0x2102
+                    };
 
 
 struct KEY_data {
@@ -206,8 +198,8 @@ struct KEY_data KEY_info = {
                             .KEY0_pressed = 0,
                             .KEY1_pressed = 0,
                             .KEY2_pressed = 0,
-                            .KEY3_pressed = 0;
-}; 
+                            .KEY3_pressed = 0
+                        }; 
 
 //pixel_buffer_start points to the pixel buffer address
 volatile int pixel_buffer_start; 
@@ -581,68 +573,75 @@ void swap(int * x, int * y){
     *y = temp;   
 }
 
-void config_GIC(){
 
-}
-
-// enable interrupts from keyboard 
-void config_keyboard(){
-	volatile int * PS2_ptr = (int *) PS2_BASE;
-	*(PS2_ptr) = 0xFF; // reset 
-	*(PS2_ptr + 1) = 0x1; // enable interrupts 
-}
-
-//enable interrupts from KEY buttons 
-void config_keys(){
-	volatile int * KEY_ptr = (int *) KEY_BASE; 
-	*(KEY_ptr + 2) = 0xF; // enable interrupts for all keys 
-}
-
-void keyboard_ISR(){
+void read_keyboard(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
-    int keyboard_data = *(PS2_ptr); 
-    int RAVAIL_data = (keyboard_data & 0xFFFF0000) >> 16; 
 
-    if (RAVAIL_data > 0) {
-        
-        ps2_byte_1 = ps2_byte_2;
-        ps2_byte_2 = ps2_byte_3;
-        ps2_byte_3 = keyboard_data & 0xFF; // extract MSBs of ps2 data 
+    int PS2_data, RVALID; 
 
-        if (ps2_byte_3 == N_1){
+    unsigned char byte1 = 0;
+	unsigned char byte2 = 0;
+	unsigned char byte3 = 0;
+
+    // booleans used to check when user input has been gathered 
+    int done = 0; 
+    int found_diff = 0;
+    int found_song = 0; 
+    int enter_game = 0; 
+
+    while (!done) {
+
+        PS2_data = *(PS2_ptr); 
+        RVALID = (PS2_data & 0x8000); 
+
+        if (RVALID != 0) {
+            byte1 = byte2;
+			byte2 = byte3;
+			byte3 = PS2_data & 0xFF;
+        } 
+
+        if (byte3 == N_1){
             game_info.difficulty_level = 1;
+            found_diff=1; 
         }
-        else if (ps2_byte_3 == N_2){
+        else if (byte3 == N_2){
             game_info.difficulty_level = 2;
+            found_diff=1; 
         }
-        else if (ps2_byte_3 == N_3){
+        else if (byte3 == N_3){
             game_info.difficulty_level = 3;
+            found_diff=1; 
         }
-        else if (ps2_byte_3 == N_4){
-            game_info.difficulty_level = 4; 
+        else if (byte3 == N_4){
+            game_info.difficulty_level = 4;
+            found_diff=1;  
         }
-        else if (ps2_byte_3 == Q){
+        else if (byte3 == Q){
             game_info.song_num = 1;
+            found_song=1; 
         }
-        else if (ps2_byte_3 == W){
+        else if (byte3 == W){
             game_info.song_num = 2;
+            found_song=1; 
         }
-        else if (ps2_byte_3 == E){
+        else if (byte3 == E){
             game_info.song_num = 3;
+            found_song=1; 
         }
-        else if (ps2_byte_3 == R){
-             game_info.song_num = 4; 
+        else if (byte3 == R){
+            game_info.song_num = 4;
+            found_song=1;  
         }
         else {
             // default case? 
         }
 
+    done = found_diff & found_song; // only exit once song and difficulty selected 
     }
-
-    return; 
 }
 
-void keys_ISR(){
+
+void read_KEYS(){
     volatile int * KEY_ptr = (int *) KEY_BASE; 
     int key_data = *(KEY_ptr + 3); 
 
