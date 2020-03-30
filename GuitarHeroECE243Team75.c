@@ -1,5 +1,5 @@
 //Guitar Hero Game
-//Vedant Prajapati 1005137610 & Katylnn Khodawandi
+//Vedant Prajapati 1005137610 & Katelyn Khodawandi
 
 //useful links:
 //drawing characters, and letters on screen: http://www-ug.eecg.utoronto.ca/desl/nios_devices_SoC/dev_vga.html *note the address is 0xc90000000
@@ -73,7 +73,24 @@
 #define ICDIPTR               0x800         // offset to interrupt processor targets regs
 #define ICDICFR               0xC00         // offset to interrupt configuration regs
 
-//initiallize functions to be used in main
+// keyboard button scan codes 
+#define Q		0x15
+#define W		0x1D
+#define E		0x24
+#define R		0x2D
+#define N_1		0x16
+#define N_2		0x1E
+#define N_3		0x26
+#define N_4		0x25
+#define ENTER	0x5A 
+#define SPACE	0x29 
+
+#define KEY0    0x1;
+#define KEY1    0x2;
+#define KEY2    0x4;
+#define KEY3    0x8;
+
+//initialize functions to be used in main
 void plot_pixel(int x1,int y1, short int pixel_colour);
 void draw_line(int x1, int y1, int x2, int y2, short int line_colour);
 void clear_screen();
@@ -90,6 +107,17 @@ void clear_text();
 void draw_string(int x, int y, char string_name []);
 void play_game(int upper_bound);
 size_t strlen(const char *s);
+
+void config_keyboard();
+void config_keys(); 
+void keyboard_ISR();
+void keys_ISR(); 
+void config_GIC(); 
+
+char ps2_byte_1 = 0;
+char ps2_byte_2 = 0;
+char ps2_byte_3 = 0;
+
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -164,6 +192,22 @@ struct colours colour = {
                         .pink = 0xf833, 
                         .yellow = 0xfff0, 
                         .grey = 0x2102};
+};
+
+
+struct KEY_data {
+    int KEY0_pressed;
+    int KEY1_pressed;
+    int KEY2_pressed;
+    int KEY3_pressed; 
+}; 
+
+struct KEY_data KEY_info = {
+                            .KEY0_pressed = 0,
+                            .KEY1_pressed = 0,
+                            .KEY2_pressed = 0,
+                            .KEY3_pressed = 0;
+}; 
 
 //pixel_buffer_start points to the pixel buffer address
 volatile int pixel_buffer_start; 
@@ -535,4 +579,89 @@ void swap(int * x, int * y){
 	int temp = *x;
     *x = *y;
     *y = temp;   
+}
+
+void config_GIC(){
+
+}
+
+// enable interrupts from keyboard 
+void config_keyboard(){
+	volatile int * PS2_ptr = (int *) PS2_BASE;
+	*(PS2_ptr) = 0xFF; // reset 
+	*(PS2_ptr + 1) = 0x1; // enable interrupts 
+}
+
+//enable interrupts from KEY buttons 
+void config_keys(){
+	volatile int * KEY_ptr = (int *) KEY_BASE; 
+	*(KEY_ptr + 2) = 0xF; // enable interrupts for all keys 
+}
+
+void keyboard_ISR(){
+    volatile int * PS2_ptr = (int *) PS2_BASE;
+    int keyboard_data = *(PS2_ptr); 
+    int RAVAIL_data = (keyboard_data & 0xFFFF0000) >> 16; 
+
+    if (RAVAIL_data > 0) {
+        
+        ps2_byte_1 = ps2_byte_2;
+        ps2_byte_2 = ps2_byte_3;
+        ps2_byte_3 = keyboard_data & 0xFF; // extract MSBs of ps2 data 
+
+        if (ps2_byte_3 == N_1){
+            game_info.difficulty_level = 1;
+        }
+        else if (ps2_byte_3 == N_2){
+            game_info.difficulty_level = 2;
+        }
+        else if (ps2_byte_3 == N_3){
+            game_info.difficulty_level = 3;
+        }
+        else if (ps2_byte_3 == N_4){
+            game_info.difficulty_level = 4; 
+        }
+        else if (ps2_byte_3 == Q){
+            game_info.song_num = 1;
+        }
+        else if (ps2_byte_3 == W){
+            game_info.song_num = 2;
+        }
+        else if (ps2_byte_3 == E){
+            game_info.song_num = 3;
+        }
+        else if (ps2_byte_3 == R){
+             game_info.song_num = 4; 
+        }
+        else {
+            // default case? 
+        }
+
+    }
+
+    return; 
+}
+
+void keys_ISR(){
+    volatile int * KEY_ptr = (int *) KEY_BASE; 
+    int key_data = *(KEY_ptr + 3); 
+
+    if (key_data > 0){
+        if (key_data == KEY0){
+            KEY_info.KEY0_pressed = 1; 
+        }
+        else if (key_data == KEY1){
+            KEY_info.KEY1_pressed = 1;
+        }
+        else if (key_data == KEY2){
+            KEY_info.KEY2_pressed = 1;
+        }
+        else if (key_data == KEY3){
+            KEY_info.KEY3_pressed = 1;
+        }
+        else {
+            // default case?
+        }
+    }
+    
 }
