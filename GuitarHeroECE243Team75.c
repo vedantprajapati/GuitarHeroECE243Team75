@@ -392,6 +392,10 @@ void draw_starting_menu(){
         draw_string(1, 49, start_game); 
         draw_line(0, 202, 319, 202, colour.yellow);
 
+         wait_state();
+        //set new back buffer
+        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+
         read_keyboard(); 
     } 
 }
