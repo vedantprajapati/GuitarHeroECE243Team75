@@ -8,6 +8,8 @@
 //include boolean header library for true and false
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
+#include <math.h>
 
 //address_map.h header file
 /* This files provides address values that exist in the system */
@@ -107,6 +109,9 @@ void clear_text();
 void draw_string(int x, int y, char string_name []);
 void play_game(int upper_bound);
 size_t strlen(const char *s);
+void reverse(char* str, int len);
+int intToStr(int x, char str[], int d);
+void ftoa(float n, char* res, int afterpoint);
 
 void read_keyboard();
 void read_KEYS(); 
@@ -123,6 +128,15 @@ struct colours{
     short int pink;
     short int yellow;
     short int grey;
+};
+
+//info about the current game
+struct  current
+{
+    int song_num;
+    char song_name[30];
+    double current_score;
+    int difficulty_level;
 };
 
 //define the current state of the game
@@ -152,7 +166,13 @@ struct game_data{
     int timer_rate;// timeout = 1/(200 MHz) x 200x10^6 = 1 sec
     int positions [5];
     short int tap_element_colours[5];
+    int high_score [4][4];
+    double last_score;
+    struct current current_info;
 };
+
+
+
 
 //initialize the game data, defaults to start_menu, easy, song_1;
 struct game_data game_info = {
@@ -169,7 +189,11 @@ struct game_data game_info = {
                             .timer_rate = 200000000,
                             .positions = {(43 + 4 + 9*4*1) , (43 + 4 + 9*4*2), (43 + 4 + 9*4*3), (43 + 4 + 9*4*4), (43 + 4 + 9*4*5) },
                             //blue, green, red, yellow, pink
-                            .tap_element_colours = {0x555F, 0x5FA5, 0xf888,0xfff0,0xf833}
+                            .tap_element_colours = {0x555F, 0x5FA5, 0xf888,0xfff0,0xf833},
+                            .current_info.song_num = 1,
+                            .current_info.song_name = "song_1",
+                            .current_info.current_score = 0,
+                            .current_info.difficulty_level = 1
                             };
 
 //set respective colours to their value
@@ -239,7 +263,8 @@ int main(void){
     
     //For testing its set to 2, current state of the game start, game, or score
     // KK: changed this to start at 1, moves to 2 once enter button pressed 
-    game_info.current_state =1;
+    //vp: changed this to 3, testing for 
+    game_info.current_state = 3;
     
     //keep running
     while(true){
@@ -483,10 +508,115 @@ void play_game(int upper_bound){
             game_info.tap_element_x[k] = 0;
         }
     }   
+
+    //need to have score checker HERE!
     
 }
 
 void draw_score_menu(){
+    bool change_menu = false;
+    while (change_menu == false){
+        // Main header - game title 
+        char screen_title[] = "* Thanks for Playing *"; 
+        char game_difficulty[10] = "";
+        draw_string(80/2 - 4, 1, screen_title);
+
+
+        //print the high score so far for the specified game
+        double current_high_score = game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1];
+        double current_score = game_info.current_info.current_score;
+        char high_score_string[20];
+        ftoa(current_high_score, high_score_string, 2);
+
+        draw_string(80/2 - strlen("The High Score to Beat Was: ")/2,60/3, "The High Score to Beat Was: ");
+        for(int i =0; i<21; i++){
+            if(high_score_string[i] != "\0")
+                draw_string(80/2 - strlen(high_score_string)/2,60/3 + 1, high_score_string[i]);
+            else
+                break;
+        }
+
+        //print the score the user had from playing the game
+        char current_score_string[20];
+        ftoa(current_score, current_score_string, 2);
+
+        draw_string(80/2 - strlen("Your Score Was: ")/2,60/3 + 3 , "Your Score Was: ");
+        for(int i =0; i<21; i++){
+            if(high_score_string[i] != "\0")
+                draw_string(80/2 - strlen(current_score_string)/2,60/3 + 4, current_score_string[i]);
+            else
+                break;
+        }
+
+        char score_difference[20];
+        if(current_score>current_high_score){
+            ftoa(current_score - current_high_score, score_difference, 2);
+            draw_string(80/2 - strlen("You Beat the High Score By: ")/2,60/3 + 6, "You Beat the High Score By: ");
+            for(int i =0; i<21; i++){
+                if(high_score_string[i] != "\0")
+                    draw_string(80/2 - strlen(score_difference)/2,60/3 + 4, score_difference[i]);
+                else
+                    break;
+            }
+        }
+        else if(current_score<current_high_score){
+            ftoa(current_score - current_high_score, score_difference, 2);
+            draw_string(80/2 - strlen("You Lost to the High Score By: ")/2,60/3 + 6, "You Lost to the High Score By: ");
+            for(int i =0; i<21; i++){
+                if(high_score_string[i] != "\0")
+                    draw_string(80/2 - strlen(score_difference)/2,60/3 + 4, score_difference[i]);
+                else
+                    break;
+            }
+        }
+        else{
+            draw_string(80/2 - strlen("It's a Tie!")/2,60/3 + 6, "It's a Tie!");
+        }
+
+        //keyboard numbers 1-4 used to select difficulty,
+        switch (game_info.current_info.difficulty_level)
+        {
+        case (1):
+            draw_string(3,1, "Difficulty Level: Easy");
+            break;
+        case (2):
+            draw_string(3,1, "Difficulty Level: Medium");
+            break;
+        case (3):
+            draw_string(3,1, "Difficulty Level: Hard");
+            break;
+        case (4):
+            draw_string(3,1, "Difficulty Level: Insane");
+            break;
+        default:
+            draw_string(3,1, "Difficulty Level: Easy");
+            break;
+        }
+        
+        draw_string(1,1, "Song: ");
+
+        for(int i =0; i<31; i++){
+            if(game_info.song_names[game_info.current_info.song_num - 1][i] != "\0")
+                draw_string(7 + i,1, game_info.song_names[game_info.current_info.song_num - 1][i]);
+            else
+                break;
+        }
+
+        int right_end = 319;
+        int left_end = 0;
+        int top_limit = 0;
+        int bottom_limit = 239;
+        //try again box located at (right_end/6 *4, bottom_limit/6 *4) with a length of right_end/6 and width of bottom_limit/6
+        //top and bottom lines of try again box 
+        draw_line(right_end/6 *4, bottom_limit/6 *4,right_end/6 * 5, bottom_limit/6 *4, colour.orange);
+        draw_line(right_end/6 *4, bottom_limit/6 *5,right_end/6 * 5, bottom_limit/6 *5, colour.orange);
+        //left and right lines of try again box
+        draw_line(right_end/6 *4, bottom_limit/6 *4,right_end/6 * 4, bottom_limit/6 *5, colour.orange);
+        draw_line(right_end/6 *5, bottom_limit/6 *4,right_end/6 * 5, bottom_limit/6 *5, colour.orange);
+        draw_string((right_end/6 *5)/4,(bottom_limit/6 *4)/4, "Try again?");
+        draw_string((right_end/6 *5)/4,(bottom_limit/6 *4)/4 + 1, "Press T");
+        //if press T, go to start menu
+    }
 
 }
 
@@ -712,3 +842,63 @@ void read_KEYS(){
     }
     
 }
+
+// Reverses a string 'str' of length 'len' 
+void reverse(char* str, int len) 
+{ 
+    int i = 0, j = len - 1, temp; 
+    while (i < j) { 
+        temp = str[i]; 
+        str[i] = str[j]; 
+        str[j] = temp; 
+        i++; 
+        j--; 
+    } 
+} 
+  
+// Converts a given integer x to string str[].  
+// d is the number of digits required in the output.  
+// If d is more than the number of digits in x,  
+// then 0s are added at the beginning. 
+int intToStr(int x, char str[], int d) 
+{ 
+    int i = 0; 
+    while (x) { 
+        str[i++] = (x % 10) + '0'; 
+        x = x / 10; 
+    } 
+  
+    // If number of digits required is more, then 
+    // add 0s at the beginning 
+    while (i < d) 
+        str[i++] = '0'; 
+  
+    reverse(str, i); 
+    str[i] = '\0'; 
+    return i; 
+} 
+  
+// Converts a floating-point/double number to a string. 
+void ftoa(float n, char* res, int afterpoint) 
+{ 
+    // Extract integer part 
+    int ipart = (int)n; 
+  
+    // Extract floating part 
+    float fpart = n - (float)ipart; 
+  
+    // convert integer part to string 
+    int i = intToStr(ipart, res, 0); 
+  
+    // check for display option after point 
+    if (afterpoint != 0) { 
+        res[i] = '.'; // add dot 
+  
+        // Get the value of fraction part upto given no. 
+        // of points after dot. The third parameter  
+        // is needed to handle cases like 233.007 
+        fpart = fpart * pow(10, afterpoint); 
+  
+        intToStr((int)fpart, res + i + 1, afterpoint); 
+    } 
+} 
