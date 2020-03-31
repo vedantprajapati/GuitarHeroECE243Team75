@@ -616,6 +616,10 @@ void draw_score_menu(){
         draw_string((right_end/6 *5)/4,(bottom_limit/6 *4)/4, "Try again?");
         draw_string((right_end/6 *5)/4,(bottom_limit/6 *4)/4 + 1, "Press T");
         //if press T, go to start menu
+    
+        wait_state();
+        //set new back buffer
+        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
     }
 
 }
