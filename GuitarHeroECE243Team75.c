@@ -84,13 +84,9 @@
 #define N_2		0x1E
 #define N_3		0x26
 #define N_4		0x25
+#define N_5     0x2E 
 #define ENTER	0x5A 
 #define SPACE	0x29 
-
-#define KEY0    0x1
-#define KEY1    0x2
-#define KEY2    0x4
-#define KEY3    0x8
 
 //initialize functions to be used in main
 void plot_pixel(int x1,int y1, short int pixel_colour);
@@ -112,9 +108,8 @@ size_t strlen(const char *s);
 void reverse(char* str, int len);
 int intToStr(int x, char str[], int d);
 void ftoa(float n, char* res, int afterpoint);
-
+void read_keyboard_play(); 
 void read_keyboard();
-void read_KEYS(); 
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -138,6 +133,16 @@ struct  current
     double current_score;
     int difficulty_level;
 };
+
+// to track which key has been pressed on keyboard 
+struct key_data
+{
+    int key1_pushed;
+    int key2_pushed;
+    int key3_pushed;
+    int key4_pushed;
+    int key5_pushed;
+}; 
 
 //define the current state of the game
 struct game_data{
@@ -169,14 +174,12 @@ struct game_data{
     int high_score [4][4];
     double last_score;
     struct current current_info;
+    struct key_data pressed_key; 
 };
-
-
-
 
 //initialize the game data, defaults to start_menu, easy, song_1;
 struct game_data game_info = {
-                            .current_state = 0, 
+                            .current_state = 1, 
                             .difficulty_level = 1,
                             .song_num = 1,
                             .song_names = {"song_1", "song_2", "song_3", "song_4"},
@@ -193,7 +196,12 @@ struct game_data game_info = {
                             .current_info.song_num = 1,
                             .current_info.song_name = "song_1",
                             .current_info.current_score = 0,
-                            .current_info.difficulty_level = 1
+                            .current_info.difficulty_level = 1,
+                            .pressed_key.key1_pushed = 0,
+                            .pressed_key.key2_pushed = 0,
+                            .pressed_key.key3_pushed = 0,
+                            .pressed_key.key4_pushed = 0,
+                            .pressed_key.key5_pushed = 0,
                             };
 
 //set respective colours to their value
@@ -209,21 +217,6 @@ struct colours colour = {
                         .yellow = 0xfff0, 
                         .grey = 0x2102
                     };
-
-
-struct KEY_data {
-    int KEY0_pressed;
-    int KEY1_pressed;
-    int KEY2_pressed;
-    int KEY3_pressed; 
-}; 
-
-struct KEY_data KEY_info = {
-                            .KEY0_pressed = 0,
-                            .KEY1_pressed = 0,
-                            .KEY2_pressed = 0,
-                            .KEY3_pressed = 0
-                        }; 
 
 //pixel_buffer_start points to the pixel buffer address
 volatile int pixel_buffer_start; 
@@ -264,7 +257,7 @@ int main(void){
     //For testing its set to 2, current state of the game start, game, or score
     // KK: changed this to start at 1, moves to 2 once enter button pressed 
     //vp: changed this to 3, testing for 
-    game_info.current_state = 3;
+    // game_info.current_state = 1;
     
     //keep running
     while(true){
@@ -454,6 +447,18 @@ void draw_game_menu(){
         char menu_name[] = "Game Menu";
         draw_string(1, 1, menu_name);
 
+        // show current score 
+        char score1[] = "Current";
+        char score2[] = "Score:";
+        draw_string(1, 10, score1);
+        draw_string(1, 11, score2);
+        char buffer[100];
+        sprintf(buffer,"%d", game_info.current_info.current_score);
+        draw_string(1,12,buffer);
+        //itoa(game_info.current_info.current_score, score_str, 10);
+        //draw_string(1,13,score_str); 
+
+
         char one[] = "1";
         char two[] = "2";
         char three[] = "3";
@@ -473,7 +478,10 @@ void draw_game_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-        
+        // to facilitate switch to score_screen 
+        //if (game_info.current_state==3){
+        //    game_complete = true; 
+        //}        
     }
 }
 
@@ -497,7 +505,7 @@ void play_game(int upper_bound){
                 break;
             }   
         }
-    }
+    }    
     for (int k =0; k < upper_bound + 1; k++){
         if(game_info.tap_element_y[k] <= 239-8 && game_info.tap_element_x[k] != 0){
             draw_tap_element(game_info.tap_element_x[k],game_info.tap_element_y[k],game_info.tap_element_colours[game_info.tap_element_int[k]]);
@@ -509,8 +517,45 @@ void play_game(int upper_bound){
         }
     }   
 
-    //need to have score checker HERE!
-    
+    //need to have score checker HERE!  
+    // this implementation currently not working - score is not changing 
+    for (int k =0; k < upper_bound + 1; k++){
+        // check if correct keyboard # pressed when tap element falls within boundary of y = 223 to 227 
+        if ((game_info.tap_element_y[k] > 223) && (game_info.tap_element_y[k] < 227)) 
+        {
+            read_keyboard_play();
+            switch (game_info.tap_element_x[k])
+            {
+                case 0: // first column 
+                    if (game_info.pressed_key.key1_pushed == 1){
+                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
+                    }
+                    break;
+                case 1: // second column
+                    if (game_info.pressed_key.key2_pushed == 1){
+                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
+                    }
+                    break;
+                case 2: // third column 
+                    if (game_info.pressed_key.key3_pushed == 1){
+                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
+                    }
+                    break;
+                case 3: // fourth column
+                    if (game_info.pressed_key.key4_pushed == 1){
+                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
+                    }
+                    break;
+                case 4: // fifth column 
+                    if (game_info.pressed_key.key5_pushed == 1){
+                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
+                    }
+                    break; 
+                default:
+                    break;
+            }
+        }
+    }
 }
 
 void draw_score_menu(){
@@ -750,7 +795,7 @@ void swap(int * x, int * y){
     *y = temp;   
 }
 
-
+// reading keyboard when curr state is starting menu
 void read_keyboard(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
@@ -817,34 +862,91 @@ void read_keyboard(){
 			break;
 		}
         else {
-            // default case? 
+            break;  
         }
 	}
 }
 
+// reading keyboard when curr state is playing the game 
+void read_keyboard_play(){
+    volatile int * PS2_ptr = (int *) PS2_BASE;
 
-void read_KEYS(){
-    volatile int * KEY_ptr = (int *) KEY_BASE; 
-    int key_data = *(KEY_ptr + 3); 
+    int PS2_data, RVALID; 
 
-    if (key_data > 0){
-        if (key_data == KEY0){
-            KEY_info.KEY0_pressed = 1; 
+    unsigned char byte1 = 0;
+	unsigned char byte2 = 0;
+	unsigned char byte3 = 0;
+
+     //while (1) {
+
+        PS2_data = *(PS2_ptr); 
+        RVALID = (PS2_data & 0x8000); 
+
+        if (RVALID != 0) {
+            byte1 = byte2;
+			byte2 = byte3;
+			byte3 = PS2_data & 0xFF;
+        } 
+		
+        if (byte3 == N_1){
+            game_info.pressed_key.key1_pushed = 1;
+            game_info.pressed_key.key5_pushed = 0;
+            game_info.pressed_key.key4_pushed = 0;
+            game_info.pressed_key.key3_pushed = 0;
+            game_info.pressed_key.key2_pushed = 0;
+			//break;
         }
-        else if (key_data == KEY1){
-            KEY_info.KEY1_pressed = 1;
+		
+        else if (byte3 == N_2){
+            game_info.pressed_key.key2_pushed = 1;
+            game_info.pressed_key.key5_pushed = 0;
+            game_info.pressed_key.key4_pushed = 0;
+            game_info.pressed_key.key3_pushed = 0;
+            game_info.pressed_key.key1_pushed = 0;
+			//break;
         }
-        else if (key_data == KEY2){
-            KEY_info.KEY2_pressed = 1;
+		
+        else if (byte3 == N_3){
+            game_info.pressed_key.key3_pushed = 1;
+            game_info.pressed_key.key5_pushed = 0;
+            game_info.pressed_key.key4_pushed = 0;
+            game_info.pressed_key.key2_pushed = 0;
+            game_info.pressed_key.key1_pushed = 0;
+			//break;
         }
-        else if (key_data == KEY3){
-            KEY_info.KEY3_pressed = 1;
+		
+        else if (byte3 == N_4){
+            game_info.pressed_key.key4_pushed = 1;
+            game_info.pressed_key.key5_pushed = 0;
+            game_info.pressed_key.key3_pushed = 0;
+            game_info.pressed_key.key2_pushed = 0;
+            game_info.pressed_key.key1_pushed = 0;
+			//break;
         }
+		
+        else if (byte3 == N_5){
+            game_info.pressed_key.key5_pushed = 1;
+            game_info.pressed_key.key4_pushed = 0;
+            game_info.pressed_key.key3_pushed = 0;
+            game_info.pressed_key.key2_pushed = 0;
+            game_info.pressed_key.key1_pushed = 0;
+			//break;
+        }
+		// enter pressed to start game 
+		else if (byte3 == ENTER){
+			//done_setup=true;
+			game_info.current_state = 3; // placeholder for now 
+			//break;
+		}
         else {
-            // default case?
+            game_info.pressed_key.key5_pushed = 0;
+            game_info.pressed_key.key4_pushed = 0;
+            game_info.pressed_key.key3_pushed = 0;
+            game_info.pressed_key.key2_pushed = 0;
+            game_info.pressed_key.key1_pushed = 0;
+            //break;
         }
-    }
-    
+	//}
 }
 
 // Reverses a string 'str' of length 'len' 
