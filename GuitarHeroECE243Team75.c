@@ -80,13 +80,19 @@
 #define W		0x1D
 #define E		0x24
 #define R		0x2D
+#define T       0x2C
 #define N_1		0x16
 #define N_2		0x1E
 #define N_3		0x26
 #define N_4		0x25
-#define N_5     0x2E 
+#define N_5     0x2E
 #define ENTER	0x5A 
 #define SPACE	0x29 
+
+#define KEY0    0x1
+#define KEY1    0x2
+#define KEY2    0x4
+#define KEY3    0x8
 
 //initialize functions to be used in main
 void plot_pixel(int x1,int y1, short int pixel_colour);
@@ -105,11 +111,13 @@ void clear_text();
 void draw_string(int x, int y, char string_name []);
 void play_game(int upper_bound);
 size_t strlen(const char *s);
-void reverse(char* str, int len);
-int intToStr(int x, char str[], int d);
-void ftoa(float n, char* res, int afterpoint);
-void read_keyboard_play(); 
-void read_keyboard();
+void read_keyboard_start();
+void read_KEYS(); 
+void read_keyboard_game();
+bool read_keyboard_score();
+void write_int(int x,int y, int num);
+int count_digits(int num);
+
 
 //structure containing each colour value so that it is easier to draw images
 struct colours{
@@ -130,19 +138,11 @@ struct  current
 {
     int song_num;
     char song_name[30];
-    double current_score;
+    int current_score;
     int difficulty_level;
+    int current_song_length;
+    int tempo;
 };
-
-// to track which key has been pressed on keyboard 
-struct key_data
-{
-    int key1_pushed;
-    int key2_pushed;
-    int key3_pushed;
-    int key4_pushed;
-    int key5_pushed;
-}; 
 
 //define the current state of the game
 struct game_data{
@@ -172,19 +172,19 @@ struct game_data{
     int positions [5];
     short int tap_element_colours[5];
     int high_score [4][4];
-    double last_score;
+    int last_score;
     struct current current_info;
-    struct key_data pressed_key; 
+    int song_length_sec[4]
 };
+
+
+
 
 //initialize the game data, defaults to start_menu, easy, song_1;
 struct game_data game_info = {
-                            .current_state = 1, 
-                            .difficulty_level = 1,
-                            .song_num = 1,
                             .song_names = {"song_1", "song_2", "song_3", "song_4"},
                             .song_default_tempo = {100,100,100,100}, 
-                            .difficulty_tempo_multiplier = {1.0,1.5,2.0,3.0},
+                            .difficulty_tempo_multiplier = {1,4,8,12},
                             .drop_speed = 4, 
                             .tap_element_x = 0,
                             .tap_element_y = 0,
@@ -197,11 +197,7 @@ struct game_data game_info = {
                             .current_info.song_name = "song_1",
                             .current_info.current_score = 0,
                             .current_info.difficulty_level = 1,
-                            .pressed_key.key1_pushed = 0,
-                            .pressed_key.key2_pushed = 0,
-                            .pressed_key.key3_pushed = 0,
-                            .pressed_key.key4_pushed = 0,
-                            .pressed_key.key5_pushed = 0,
+                            .song_length_sec = {30,60,90,120}
                             };
 
 //set respective colours to their value
@@ -217,6 +213,21 @@ struct colours colour = {
                         .yellow = 0xfff0, 
                         .grey = 0x2102
                     };
+
+
+struct KEY_data {
+    int KEY0_pressed;
+    int KEY1_pressed;
+    int KEY2_pressed;
+    int KEY3_pressed; 
+}; 
+
+struct KEY_data KEY_info = {
+                            .KEY0_pressed = 0,
+                            .KEY1_pressed = 0,
+                            .KEY2_pressed = 0,
+                            .KEY3_pressed = 0
+                        }; 
 
 //pixel_buffer_start points to the pixel buffer address
 volatile int pixel_buffer_start; 
@@ -257,7 +268,7 @@ int main(void){
     //For testing its set to 2, current state of the game start, game, or score
     // KK: changed this to start at 1, moves to 2 once enter button pressed 
     //vp: changed this to 3, testing for 
-    // game_info.current_state = 1;
+    game_info.current_state = 3;
     
     //keep running
     while(true){
@@ -282,6 +293,7 @@ int main(void){
 
 }
 
+//this function draws the screen needed to create 
 void draw_screen(struct game_data game_info){
     switch (game_info.current_state){
         case 1:
@@ -414,22 +426,24 @@ void draw_starting_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-        read_keyboard(); 
+        read_keyboard_start(); 
     } 
 }
 
 void draw_game_menu(){
-
+    
     int num_elements = 0;
+    double time_left = game_info.current_info.current_song_length;
+    game_info.current_info.tempo = game_info.timer_rate/game_info.difficulty_tempo_multiplier[game_info.current_info.difficulty_level - 1];
 
-    bool game_complete = false;
-    while (game_complete == false){
+    while (time_left > 0){
         clear_screen();
 
         int left_end = 43 + 4;
         int right_end = 279 -4;
         int top_limit = 0;
         int bottom_limit = 239;
+
         //draw edge borders
         draw_line(left_end, top_limit, left_end, bottom_limit,colour.orange);
         draw_line(right_end, top_limit, right_end, bottom_limit,colour.orange);
@@ -446,18 +460,6 @@ void draw_game_menu(){
         //draw the menu name
         char menu_name[] = "Game Menu";
         draw_string(1, 1, menu_name);
-
-        // show current score 
-        char score1[] = "Current";
-        char score2[] = "Score:";
-        draw_string(1, 10, score1);
-        draw_string(1, 11, score2);
-        char buffer[100];
-        sprintf(buffer,"%d", game_info.current_info.current_score);
-        draw_string(1,12,buffer);
-        //itoa(game_info.current_info.current_score, score_str, 10);
-        //draw_string(1,13,score_str); 
-
 
         char one[] = "1";
         char two[] = "2";
@@ -478,10 +480,16 @@ void draw_game_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-        // to facilitate switch to score_screen 
-        //if (game_info.current_state==3){
-        //    game_complete = true; 
-        //}        
+        //200000000 = 1 sec
+        if (game_info.current_info.tempo == 200000000)//1sec
+            time_left -= 1;
+        else if(game_info.current_info.tempo == 200000000/4)//2sec 
+            time_left -= 1/4;
+        else if(game_info.current_info.tempo == 200000000/8)//3sec
+            time_left -= 1/8;
+        else if(game_info.current_info.tempo == 200000000/12)//4sec
+            time_left -= 1/12;
+
     }
 }
 
@@ -505,7 +513,7 @@ void play_game(int upper_bound){
                 break;
             }   
         }
-    }    
+    }
     for (int k =0; k < upper_bound + 1; k++){
         if(game_info.tap_element_y[k] <= 239-8 && game_info.tap_element_x[k] != 0){
             draw_tap_element(game_info.tap_element_x[k],game_info.tap_element_y[k],game_info.tap_element_colours[game_info.tap_element_int[k]]);
@@ -517,45 +525,9 @@ void play_game(int upper_bound){
         }
     }   
 
-    //need to have score checker HERE!  
-    // this implementation currently not working - score is not changing 
-    for (int k =0; k < upper_bound + 1; k++){
-        // check if correct keyboard # pressed when tap element falls within boundary of y = 223 to 227 
-        if ((game_info.tap_element_y[k] > 223) && (game_info.tap_element_y[k] < 227)) 
-        {
-            read_keyboard_play();
-            switch (game_info.tap_element_x[k])
-            {
-                case 0: // first column 
-                    if (game_info.pressed_key.key1_pushed == 1){
-                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
-                    }
-                    break;
-                case 1: // second column
-                    if (game_info.pressed_key.key2_pushed == 1){
-                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
-                    }
-                    break;
-                case 2: // third column 
-                    if (game_info.pressed_key.key3_pushed == 1){
-                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
-                    }
-                    break;
-                case 3: // fourth column
-                    if (game_info.pressed_key.key4_pushed == 1){
-                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
-                    }
-                    break;
-                case 4: // fifth column 
-                    if (game_info.pressed_key.key5_pushed == 1){
-                        game_info.current_info.current_score = game_info.current_info.current_score + 1; 
-                    }
-                    break; 
-                default:
-                    break;
-            }
-        }
-    }
+    //check and update the score each time play_game is run
+    read_keyboard_game();
+    
 }
 
 void draw_score_menu(){
@@ -568,51 +540,33 @@ void draw_score_menu(){
 
 
         //print the high score so far for the specified game
-        double current_high_score = game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1];
-        double current_score = game_info.current_info.current_score;
-        char high_score_string[20];
-        ftoa(current_high_score, high_score_string, 2);
+        int current_high_score = game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1];
+        int current_score = game_info.current_info.current_score;
 
         draw_string(80/2 - strlen("The High Score to Beat Was: ")/2,60/3, "The High Score to Beat Was: ");
-        for(int i =0; i<21; i++){
-            if(high_score_string[i] != "\0")
-                draw_string(80/2 - strlen(high_score_string)/2,60/3 + 1, high_score_string[i]);
-            else
-                break;
-        }
+        if(current_high_score != 0)
+            write_int(80/2 - count_digits(current_high_score)/2,60/3 + 1, current_high_score);
+        else
+            break;
+        
 
         //print the score the user had from playing the game
-        char current_score_string[20];
-        ftoa(current_score, current_score_string, 2);
-
         draw_string(80/2 - strlen("Your Score Was: ")/2,60/3 + 3 , "Your Score Was: ");
-        for(int i =0; i<21; i++){
-            if(high_score_string[i] != "\0")
-                draw_string(80/2 - strlen(current_score_string)/2,60/3 + 4, current_score_string[i]);
-            else
-                break;
-        }
+        if(current_score != 0)
+            write_int(80/2 - count_digits(current_high_score)/2,60/3 + 4, current_high_score);
+        else
+            break;
+                
 
-        char score_difference[20];
         if(current_score>current_high_score){
-            ftoa(current_score - current_high_score, score_difference, 2);
+            int score_difference = current_high_score - current_score;
             draw_string(80/2 - strlen("You Beat the High Score By: ")/2,60/3 + 6, "You Beat the High Score By: ");
-            for(int i =0; i<21; i++){
-                if(high_score_string[i] != "\0")
-                    draw_string(80/2 - strlen(score_difference)/2,60/3 + 4, score_difference[i]);
-                else
-                    break;
-            }
+            write_int(80/2 - count_digits(score_difference)/2,60/3 + 7, score_difference);
         }
         else if(current_score<current_high_score){
-            ftoa(current_score - current_high_score, score_difference, 2);
-            draw_string(80/2 - strlen("You Lost to the High Score By: ")/2,60/3 + 6, "You Lost to the High Score By: ");
-            for(int i =0; i<21; i++){
-                if(high_score_string[i] != "\0")
-                    draw_string(80/2 - strlen(score_difference)/2,60/3 + 4, score_difference[i]);
-                else
-                    break;
-            }
+            int score_difference = current_score - current_high_score;
+            draw_string(80/2 - strlen("You Beat the High Score By: ")/2,60/3 + 6, "You Beat the High Score By: ");
+            write_int(80/2 - count_digits(score_difference)/2,60/3 + 7, score_difference);
         }
         else{
             draw_string(80/2 - strlen("It's a Tie!")/2,60/3 + 6, "It's a Tie!");
@@ -661,7 +615,8 @@ void draw_score_menu(){
         draw_string((right_end/6 *5)/4,(bottom_limit/6 *4)/4, "Try again?");
         draw_string((right_end/6 *5)/4,(bottom_limit/6 *4)/4 + 1, "Press T");
         //if press T, go to start menu
-    
+        change_menu = read_keyboard_score();
+
         wait_state();
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
@@ -675,6 +630,31 @@ void draw_string(int x, int y, char string_name []){
 		iterate = &string_name[i];
 		write_char(x,y,*iterate);
         x++;
+    }
+}
+
+int count_digits(int num){
+    int count =0;
+    do
+    {
+        /* Increment digit count */
+        count++;
+
+        /* Remove last digit of 'num' */
+        num /= 10;
+    } while(num != 0);
+    return count;
+}
+
+void write_int(int x,int y, int num){
+    int temp = 0;
+    int count = 0;
+    int size = count_digits(num);
+    while(num>=1){
+        temp = num%10;
+        write_char(x + size - count,y,(char)temp);
+        num = num/10;
+        count ++;
     }
 }
 
@@ -795,8 +775,8 @@ void swap(int * x, int * y){
     *y = temp;   
 }
 
-// reading keyboard when curr state is starting menu
-void read_keyboard(){
+
+void read_keyboard_start(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
     int PS2_data, RVALID; 
@@ -817,58 +797,68 @@ void read_keyboard(){
         } 
 		// 1 pressed for easy 
         if (byte3 == N_1){
-            game_info.difficulty_level = 1;
+            game_info.current_info.difficulty_level = 1;
 			break;
         }
 		// 2 pressed for medium
         else if (byte3 == N_2){
-            game_info.difficulty_level = 2;
+            game_info.current_info.difficulty_level = 2;
 			break;
         }
 		// 3 pressed for hard
         else if (byte3 == N_3){
-            game_info.difficulty_level = 3;
+            game_info.current_info.difficulty_level = 3;
 			break;
         }
 		// 4 pressed for expert
         else if (byte3 == N_4){
-            game_info.difficulty_level = 4;
+            game_info.current_info.difficulty_level = 4;
 			break;
         }
 		// Q pressed for song 1
         else if (byte3 == Q){
-            game_info.song_num = 1;
-			break;
+            game_info.current_info.song_num = 1;
+			//initialize song_length
+            game_info.current_info.current_song_length = game_info.song_length_sec[game_info.current_info.song_num - 1];
+            break;
         }
 		// W pressed for song 2
         else if (byte3 == W){
-            game_info.song_num = 2; 
-			break;
+            game_info.current_info.song_num = 2; 
+            //initialize song_length
+            game_info.current_info.current_song_length = game_info.song_length_sec[game_info.current_info.song_num - 1];
+        	break;
         }
 		// E pressed for song 3
         else if (byte3 == E){
-            game_info.song_num = 3;
+            game_info.current_info.song_num = 3;
+            //initialize song_length
+            game_info.current_info.current_song_length = game_info.song_length_sec[game_info.current_info.song_num - 1];
 			break;
         }
 		// R pressed for song 4
         else if (byte3 == R){
-            game_info.song_num = 4;
+            game_info.current_info.song_num = 4;
+            //initialize song_length
+            game_info.current_info.current_song_length = game_info.song_length_sec[game_info.current_info.song_num - 1];
 			break;
         }
 		// enter pressed to start game 
 		else if (byte3 == ENTER){
 			//done_setup=true;
 			game_info.current_state = 2; // is this what we want here? 
+            //initialize song_length
+            game_info.current_info.current_song_length = game_info.song_length_sec[game_info.current_info.song_num - 1];
 			break;
 		}
         else {
-            break;  
+            // default case? 
         }
 	}
 }
 
-// reading keyboard when curr state is playing the game 
-void read_keyboard_play(){
+
+void read_keyboard_game(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
     int PS2_data, RVALID; 
@@ -877,134 +867,120 @@ void read_keyboard_play(){
 	unsigned char byte2 = 0;
 	unsigned char byte3 = 0;
 
-     //while (1) {
+    int press_button;
+    PS2_data = *(PS2_ptr); 
+    RVALID = (PS2_data & 0x8000); 
 
-        PS2_data = *(PS2_ptr); 
-        RVALID = (PS2_data & 0x8000); 
+    if (RVALID != 0) {
+        byte1 = byte2;
+        byte2 = byte3;
+        byte3 = PS2_data & 0xFF;
+    } 
+    // 1 pressed for easy 
+    if (byte3 == N_1){
+        press_button = 1;
+    }
+    // 2 pressed for medium
+    else if (byte3 == N_2){
+        game_info.difficulty_level = 2;
+    }
+    // 3 pressed for hard
+    else if (byte3 == N_3){
+        press_button = 3;
+    }
+    // 4 pressed for expert
+    else if (byte3 == N_4){
+        press_button = 4;
+    }
+    // Q pressed for song 1
+    else if (byte3 ==N_5){
+        press_button = 1;
+    }
+    else {
+        press_button =0; 
+    }
 
-        if (RVALID != 0) {
-            byte1 = byte2;
-			byte2 = byte3;
-			byte3 = PS2_data & 0xFF;
-        } 
-		
-        if (byte3 == N_1){
-            game_info.pressed_key.key1_pushed = 1;
-            game_info.pressed_key.key5_pushed = 0;
-            game_info.pressed_key.key4_pushed = 0;
-            game_info.pressed_key.key3_pushed = 0;
-            game_info.pressed_key.key2_pushed = 0;
-			//break;
-        }
-		
-        else if (byte3 == N_2){
-            game_info.pressed_key.key2_pushed = 1;
-            game_info.pressed_key.key5_pushed = 0;
-            game_info.pressed_key.key4_pushed = 0;
-            game_info.pressed_key.key3_pushed = 0;
-            game_info.pressed_key.key1_pushed = 0;
-			//break;
-        }
-		
-        else if (byte3 == N_3){
-            game_info.pressed_key.key3_pushed = 1;
-            game_info.pressed_key.key5_pushed = 0;
-            game_info.pressed_key.key4_pushed = 0;
-            game_info.pressed_key.key2_pushed = 0;
-            game_info.pressed_key.key1_pushed = 0;
-			//break;
-        }
-		
-        else if (byte3 == N_4){
-            game_info.pressed_key.key4_pushed = 1;
-            game_info.pressed_key.key5_pushed = 0;
-            game_info.pressed_key.key3_pushed = 0;
-            game_info.pressed_key.key2_pushed = 0;
-            game_info.pressed_key.key1_pushed = 0;
-			//break;
-        }
-		
-        else if (byte3 == N_5){
-            game_info.pressed_key.key5_pushed = 1;
-            game_info.pressed_key.key4_pushed = 0;
-            game_info.pressed_key.key3_pushed = 0;
-            game_info.pressed_key.key2_pushed = 0;
-            game_info.pressed_key.key1_pushed = 0;
-			//break;
-        }
-		// enter pressed to start game 
-		else if (byte3 == ENTER){
-			//done_setup=true;
-			game_info.current_state = 3; // placeholder for now 
-			//break;
-		}
-        else {
-            game_info.pressed_key.key5_pushed = 0;
-            game_info.pressed_key.key4_pushed = 0;
-            game_info.pressed_key.key3_pushed = 0;
-            game_info.pressed_key.key2_pushed = 0;
-            game_info.pressed_key.key1_pushed = 0;
-            //break;
-        }
-	//}
+    if (press_button <= 5 && press_button >= 1){
+        //if the corresponding buttons have been pressed
+        //check if there is something near the purple bar
+        for(int i =0; i < 50; i++){
+                int top_limit = 0;
+                int bottom_limit = 239;
+            if(game_info.tap_element_x[i] == game_info.positions[press_button - 1]){
+                //CHECK IF IN SCORE AREA
+                if (game_info.tap_element_y[i] >  bottom_limit){
+                    //perfect point
+                    if(game_info.tap_element_y == bottom_limit - 16 ){
+                        game_info.current_info.current_score += 10;
+                        break;
+                    }
+                    //landed but not exactly there, partial points 
+                    else if(game_info.tap_element_y > bottom_limit - 16 && game_info.tap_element_y <= bottom_limit - 12 ){
+                        game_info.current_info.current_score += 5;
+                        break;
+                    }
+                    //else no points
+                    else{
+                        break;
+                    }
+                }
+            }
+        }           
+    }
+    else{
+        //do nothing
+    }
+
 }
 
-// Reverses a string 'str' of length 'len' 
-void reverse(char* str, int len) 
-{ 
-    int i = 0, j = len - 1, temp; 
-    while (i < j) { 
-        temp = str[i]; 
-        str[i] = str[j]; 
-        str[j] = temp; 
-        i++; 
-        j--; 
+bool read_keyboard_score(){
+    volatile int * PS2_ptr = (int *) PS2_BASE;
+
+    int PS2_data, RVALID; 
+
+    unsigned char byte1 = 0;
+	unsigned char byte2 = 0;
+	unsigned char byte3 = 0;
+
+    PS2_data = *(PS2_ptr); 
+    RVALID = (PS2_data & 0x8000); 
+
+    if (RVALID != 0) {
+        byte1 = byte2;
+			byte2 = byte3;
+    byte3 = PS2_data & 0xFF;
     } 
-} 
-  
-// Converts a given integer x to string str[].  
-// d is the number of digits required in the output.  
-// If d is more than the number of digits in x,  
-// then 0s are added at the beginning. 
-int intToStr(int x, char str[], int d) 
-{ 
-    int i = 0; 
-    while (x) { 
-        str[i++] = (x % 10) + '0'; 
-        x = x / 10; 
-    } 
-  
-    // If number of digits required is more, then 
-    // add 0s at the beginning 
-    while (i < d) 
-        str[i++] = '0'; 
-  
-    reverse(str, i); 
-    str[i] = '\0'; 
-    return i; 
-} 
-  
-// Converts a floating-point/double number to a string. 
-void ftoa(float n, char* res, int afterpoint) 
-{ 
-    // Extract integer part 
-    int ipart = (int)n; 
-  
-    // Extract floating part 
-    float fpart = n - (float)ipart; 
-  
-    // convert integer part to string 
-    int i = intToStr(ipart, res, 0); 
-  
-    // check for display option after point 
-    if (afterpoint != 0) { 
-        res[i] = '.'; // add dot 
-  
-        // Get the value of fraction part upto given no. 
-        // of points after dot. The third parameter  
-        // is needed to handle cases like 233.007 
-        fpart = fpart * pow(10, afterpoint); 
-  
-        intToStr((int)fpart, res + i + 1, afterpoint); 
-    } 
-} 
+    // 1 pressed for easy 
+    if (byte3 == T){
+        game_info.current_state = 1;
+        return true;
+    }
+    else {
+        return false; 
+    }
+	
+}
+void read_KEYS(){
+    volatile int * KEY_ptr = (int *) KEY_BASE; 
+    int key_data = *(KEY_ptr + 3); 
+
+    if (key_data > 0){
+        if (key_data == KEY0){
+            KEY_info.KEY0_pressed = 1; 
+        }
+        else if (key_data == KEY1){
+            KEY_info.KEY1_pressed = 1;
+        }
+        else if (key_data == KEY2){
+            KEY_info.KEY2_pressed = 1;
+        }
+        else if (key_data == KEY3){
+            KEY_info.KEY3_pressed = 1;
+        }
+        else {
+            // default case?
+        }
+    }
+    
+}
+
