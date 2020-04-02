@@ -473,6 +473,21 @@ void draw_game_menu(){
             }
             else{
                 game_info.tap_element_y[k] = 0;
+                if (game_info.tap_element_x[k] == 83){
+                    game_info.check_points.one = false;
+                }
+                else if (game_info.tap_element_x[k] == 119){
+                    game_info.check_points.two = false;
+                }
+                else if (game_info.tap_element_x[k] == 155){
+                    game_info.check_points.three = false;
+                }
+                else if (game_info.tap_element_x[k] == 191){
+                    game_info.check_points.four = false;
+                }
+                else if (game_info.tap_element_x[k] == 227){
+                    game_info.check_points.five = false;
+                }
                 game_info.tap_element_x[k] = 0;
             }
         } 
@@ -505,9 +520,6 @@ void draw_game_menu(){
 void play_game(int upper_bound){
 
     while (*(MPcore_private_timer_ptr + 3) == 0){
-        //set new back buffer
-        // pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-        //check and update the score each time play_game is run
             ; // wait for timer to expire
         }
     *(MPcore_private_timer_ptr + 3) = 1; // reset timer flag bit
