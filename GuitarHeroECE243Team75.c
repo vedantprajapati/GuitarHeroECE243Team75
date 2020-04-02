@@ -556,7 +556,7 @@ void play_game(int upper_bound){
         }
     }
     for (int k =0; k < upper_bound + 1; k++){
-        if(game_info.tap_element_y[k] <= 239-8 && game_info.tap_element_x[k] != 0){
+        if(game_info.tap_element_y[k] <= 239-8 && game_info.tap_element_x[k] != 0)
             draw_tap_element(game_info.tap_element_x[k],game_info.tap_element_y[k],game_info.tap_element_colours[game_info.tap_element_int[k]]);
     }   
     
