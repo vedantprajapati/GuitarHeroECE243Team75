@@ -133,9 +133,9 @@ struct game_data{
    
     double song_default_tempo[4];   // song tempos for all 4 songs 
     int drop_speed;                 // controlled by selected difficulty 
-     int song_length_sec[4];
+    int song_length_sec[4];
 
-    int timer_rate;     // timeout = 1/(200 MHz) x 200x10^6 = 1 sec
+    //int timer_rate;     // timeout = 1/(200 MHz) x 200x10^6 = 1 sec
 
     //can have up to 50 tap elements on the screen
     int tap_element_x [50];
@@ -162,7 +162,7 @@ struct game_data game_info = {
                             .tap_element_x = 0,
                             .tap_element_y = 0,
                             .tap_element_int = 0,
-                            .timer_rate = oneSec,
+                            //.timer_rate = oneSec,
                             .positions = {(43 + 4 + 9*4*1) , (43 + 4 + 9*4*2), (43 + 4 + 9*4*3), (43 + 4 + 9*4*4), (43 + 4 + 9*4*5) },
                             .tap_element_colours = {0x555F, 0x5FA5, 0xf888,0xfff0,0xf833}, //blue, green, red, yellow, pink
                             .current_info.song_num = 1,
@@ -178,6 +178,7 @@ struct game_data game_info = {
 							.check_points.four = false,
 							.check_points.five = false
                             };
+
 
 /* global variables */ 
 
@@ -376,14 +377,14 @@ void draw_game_menu(){
 
     int num_elements = 0;
     double time_left = game_info.current_info.current_song_length;
-    if(game_info.timer_rate/game_info.current_info.difficulty_level ==1)
-        game_info.current_info.tempo = (game_info.timer_rate/1);
-    else if (game_info.timer_rate/game_info.current_info.difficulty_level ==2)
-        game_info.current_info.tempo = (game_info.timer_rate/4);
-    else if (game_info.timer_rate/game_info.current_info.difficulty_level ==3)
-        game_info.current_info.tempo = (game_info.timer_rate/8);
-    else if (game_info.timer_rate/game_info.current_info.difficulty_level ==4)
-        game_info.current_info.tempo = (game_info.timer_rate/12);
+    if(/*game_info.timer_rate/*/game_info.current_info.difficulty_level ==1)
+        game_info.current_info.tempo = (oneSec/1);
+    else if (/*game_info.timer_rate/*/game_info.current_info.difficulty_level ==2)
+        game_info.current_info.tempo = (oneSec/4);
+    else if (/*game_info.timer_rate/*/game_info.current_info.difficulty_level ==3)
+        game_info.current_info.tempo = oneSec/8;
+    else if (/*game_info.timer_rate/*/game_info.current_info.difficulty_level ==4)
+        game_info.current_info.tempo = oneSec/12;
 
     //enable timer
     *(MPcore_private_timer_ptr) = game_info.current_info.tempo; // write to timer load register
@@ -477,6 +478,8 @@ void draw_game_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+        time_left -= 0.25; 
+        /* 
         //200000000 = 1 sec
         if (game_info.current_info.difficulty_level == 1)//1sec
             time_left -= 1;
@@ -486,7 +489,7 @@ void draw_game_menu(){
             time_left -= 1/8;
         else if(game_info.current_info.difficulty_level == 4)//4sec
             time_left -= 1/12;
-        else break;
+        else break; */ 
     }
     
     clear_screen();
@@ -625,6 +628,10 @@ void draw_score_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
     }
+
+    if (game_info.current_info.current_score > game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1])
+            game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1] = game_info.current_info.current_score; 
+
 
 }
 
@@ -986,7 +993,7 @@ void reset(){
     	game_info.tap_element_int[i] = 0;
 	} 
     
-	game_info.timer_rate = oneSec;
+	//game_info.timer_rate = oneSec;
     game_info.current_info.song_num = 1;
     
     game_info.current_info.difficulty_level = 1;
