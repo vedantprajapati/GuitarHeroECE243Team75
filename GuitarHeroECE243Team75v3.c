@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 
 //address_map.h header file
 // relevant addresses used in code 
@@ -191,7 +192,7 @@ volatile int * MPcore_private_timer_ptr = (int *)MPCORE_PRIV_TIMER; //timer
 int main(void){
     //pointer to the pixel controller address
     pixel_ctrl_ptr = (int *)PIXEL_BUF_CTRL_BASE;
-    volatile char * character_buffer = (char *) (FPGA_CHAR_BASE);
+    //volatile char * character_buffer = (char *) (FPGA_CHAR_BASE);
     /* Read location of the pixel buffer from the pixel buffer controller */
     pixel_buffer_start = *pixel_ctrl_ptr;
 
@@ -481,19 +482,7 @@ void draw_game_menu(){
 
         read_keyboard_game(); 
         read_keyboard_clear(); 
-        //read_keyboard_clear(); 
-        time_left -= 0.25; 
-        /* 
-        //200000000 = 1 sec
-        if (game_info.current_info.difficulty_level == 1)//1sec
-            time_left -= 1;
-        else if(game_info.current_info.difficulty_level == 2)//2sec 
-            time_left -= 1/4;
-        else if(game_info.current_info.difficulty_level == 3)//3sec
-            time_left -= 1/8;
-        else if(game_info.current_info.difficulty_level == 4)//4sec
-            time_left -= 1/12;
-        else break; */ 
+        time_left -= 0.25;  
     }
     
     clear_screen();
@@ -556,7 +545,7 @@ void draw_score_menu(){
         clear_screen(); // to get rid of old game_menu screen 
         // Main header - game title 
         char screen_title[] = "* Thanks for Playing *"; 
-        char game_difficulty[10] = "";
+        // char game_difficulty[10] = ""; // KK do we need this?
         draw_string(80/2 -strlen(screen_title)/2, 1, screen_title);
 
 
@@ -613,8 +602,6 @@ void draw_score_menu(){
 		draw_string(7,1,game_info.song_names[game_info.current_info.song_num - 1]);
 
         int right_end = 319;
-        int left_end = 0;
-        int top_limit = 0;
         int bottom_limit = 239;
         //try again box located at (right_end/6 *4, bottom_limit/6 *4) with a length of right_end/6 and width of bottom_limit/6
         //top and bottom lines of try again box 
@@ -666,7 +653,7 @@ void write_int(int x,int y, int num){
 	char buffer[30]; 
 	// Counting the character and storing 
 	// in buffer using snprintf 
-	int j = snprintf(buffer, count_digits(num)+1, "%d\n", num);        
+	snprintf(buffer, count_digits(num)+1, "%d\n", num);        
     char * iterate;
     for (int i =0; i <count_digits(num); i++){
 		iterate = &buffer[i];
@@ -712,7 +699,6 @@ void wait_state_play(){
         status = status; //keep reading status
     } 
 
-    //read_keyboard_game(); 
     //return out of wait_state when s = 1
     return;
 }
@@ -1019,9 +1005,7 @@ void reset(){
     	game_info.tap_element_int[i] = 0;
 	} 
     
-	//game_info.timer_rate = oneSec;
     game_info.current_info.song_num = 1;
-    
     game_info.current_info.difficulty_level = 1;
     game_info.current_info.tempo = oneSec;
     game_info.pressed_button = 0;
