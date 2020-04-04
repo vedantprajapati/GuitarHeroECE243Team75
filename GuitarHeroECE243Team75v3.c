@@ -45,12 +45,6 @@
 #define ENTER	0x5A 
 #define SPACE	0x29 
 
-#define No_1		0x16
-#define No_2		0x1E
-#define No_3		0x26
-#define No_4		0x25
-#define No_5        0x2E
-
 #define oneSec    200000000
 
 //initialize functions to be used in main
@@ -487,6 +481,7 @@ void draw_game_menu(){
 
         read_keyboard_game(); 
         read_keyboard_clear(); 
+        //read_keyboard_clear(); 
         time_left -= 0.25; 
         /* 
         //200000000 = 1 sec
@@ -911,14 +906,16 @@ void read_keyboard_clear(){
     unsigned char byte1 = 0;
 	unsigned char byte2 = 0;
 	unsigned char byte3 = 0;
-
     PS2_data = *(PS2_ptr); 
     RVALID = (PS2_data & 0x8000); 
 
-    if (RVALID != 0) {
+    while (RVALID != 0){
+    
         byte1 = byte2;
         byte2 = byte3;
         byte3 = PS2_data & 0xFF;
+        PS2_data = *(PS2_ptr); 
+        RVALID = (PS2_data & 0x8000); 
     } 
 }
 
