@@ -73,6 +73,12 @@ int count_digits(int num);
 void reset(); 
 void wait_state_play();
 void read_keyboard_clear(); 
+void clear_col_notes_game();
+void reset_notes();
+void falling_notes(int left_limit, int right_limit, int max_elem);
+void draw_note(int x, int y, int note_type, short int note_colour);
+int arr_select();
+
 
 // structure that keeps track of columns with tap element(s) within bounds for points if tapped 
 struct points{
@@ -182,6 +188,89 @@ struct game_data game_info = {
                             };
 
 
+//Draw note animations:
+struct note_array
+{
+    int note_1_arr[11][10];
+    int note_2_arr[11][7];
+    int note_3_arr[16][8];
+    int note_4_arr[11][14];
+    int chance;
+    int note_speeds[4];
+    int note_elem_type[60];
+    int note_elem_x[60];
+    int note_elem_y[60];
+    short int note_elem_col [60];
+    int max_elem;
+};
+
+struct note_array notelist = {
+    .note_1_arr = {
+                {0,0,0,0,0,0,0,0,0,0},
+                {0,0,0,0,0,1,1,1,0,0},
+                {0,0,0,0,0,1,0,1,1,0},
+                {0,0,0,0,0,1,0,0,1,0},
+                {0,0,0,0,0,1,0,0,0,0},
+                {0,0,0,0,0,1,0,0,0,0},
+                {0,0,1,1,1,1,0,0,0,0},
+                {0,1,1,1,1,1,0,0,0,0},
+                {0,1,1,1,1,1,0,0,0,0},
+                {0,0,1,1,1,0,0,0,0,0},
+                {0,0,0,0,0,0,0,0,0,0}},
+    .note_2_arr = {
+                {0,0,0,0,0,0,0},
+                {0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0},
+                {0,0,1,1,1,1,0},
+                {0,1,1,1,1,1,0},
+                {0,1,1,1,1,1,0},
+                {0,0,1,1,1,0,0},
+                {0,0,0,0,0,0,0}
+                },
+    .note_3_arr = {
+                {0,0,0,0,0,0,0,0},
+                {0,0,0,0,1,1,0,0},
+                {0,0,0,0,1,0,1,0},
+                {0,0,0,0,1,0,1,0},
+                {0,0,0,0,1,1,0,0},
+                {0,0,0,0,1,0,0,0},
+                {0,0,1,1,1,0,0,0},
+                {0,1,0,0,1,0,0,0},
+                {0,1,0,1,1,1,1,0},
+                {0,1,0,0,1,0,1,0},
+                {0,1,1,0,1,0,1,0},
+                {0,0,1,1,1,1,1,0},
+                {0,0,0,0,1,0,0,0},
+                {0,1,0,0,1,0,0,0},
+                {0,0,1,1,0,0,0,0},
+                {0,0,0,0,0,0,0,0}
+                },
+    .note_4_arr = {
+                {0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                {0,0,0,0,0,1,1,1,1,1,1,1,1,0},
+                {0,0,0,0,0,1,0,0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0,0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0,0,0,0,0,0,1,0},
+                {0,0,0,0,0,1,0,0,0,0,0,0,1,0},
+                {0,0,1,1,1,1,0,0,0,1,1,1,1,0},
+                {0,1,1,1,1,1,0,0,1,1,1,1,1,0},
+                {0,1,1,1,1,1,0,0,1,1,1,1,1,0},
+                {0,0,1,1,1,0,0,0,0,1,1,1,0,0},
+                {0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    },
+    .chance = 300,
+    .note_speeds = {10,2,4,8},
+    .note_elem_type = -1,
+    .note_elem_x = -1,
+    .note_elem_y = -1,
+    .note_elem_col = -1,
+    .max_elem = 0
+};
+
+
 /* global variables */ 
 
 volatile int pixel_buffer_start;  //pixel_buffer_start points to the pixel buffer address
@@ -230,7 +319,7 @@ int main(void){
         //wait and swap front and back buffers for vsync   
         wait_state();
 
-        //set new back buffer
+        //set new back 
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
     }
 
@@ -279,7 +368,7 @@ void write_char(int x, int y, char c) {
 }
 
 void draw_starting_menu(){
-
+    reset_notes();
     // Main header - game title 
 	char game_name[] = "* Guitar Hero *"; 
 
@@ -307,7 +396,7 @@ void draw_starting_menu(){
 
     while (game_info.current_state == 1) { 
         clear_screen(); 
-        
+
         // draw header 
         draw_string(1, 1, game_name); 
         draw_line(0, 10, 319, 10, colour.orange);
@@ -372,7 +461,7 @@ void draw_starting_menu(){
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
         read_keyboard_start(); 
-    } 
+    }
 }
 
 void draw_game_menu(){
@@ -388,6 +477,8 @@ void draw_game_menu(){
     else if (/*game_info.timer_rate/*/game_info.current_info.difficulty_level ==4)
         game_info.current_info.tempo = oneSec/12;
 
+    reset_notes(); 
+    
     //enable timer
     *(MPcore_private_timer_ptr) = game_info.current_info.tempo; // write to timer load register
     *(MPcore_private_timer_ptr + 2) = 0b011; // mode = 1 (auto), enable = 1
@@ -484,7 +575,7 @@ void draw_game_menu(){
         //read_keyboard_clear(); 
         time_left -= 0.25;  
     }
-    
+    reset_notes();
     clear_screen();
     wait_state();
     //set new back buffer
@@ -544,6 +635,7 @@ void draw_score_menu(){
 
         clear_screen(); // to get rid of old game_menu screen 
         // Main header - game title 
+        falling_notes(0, 319-16, notelist.max_elem);
         char screen_title[] = "* Thanks for Playing *"; 
         // char game_difficulty[10] = ""; // KK do we need this?
         draw_string(80/2 -strlen(screen_title)/2, 1, screen_title);
@@ -882,6 +974,7 @@ void read_keyboard_start(){
         else {
             // default case? 
         }
+
 	}
 }
 
@@ -1017,4 +1110,129 @@ void reset(){
     game_info.check_points.four = false;
     game_info.check_points.five = false;
 
+}
+
+int arr_select(){
+    //0,1,2,3
+    int sel = rand() % 4;
+    return sel;
+}
+
+void draw_note(int x, int y, int note_type, short int note_colour){
+
+    switch (note_type)
+    {
+    case(0):
+        //col for x
+        for(int i = 0; i < 10; i++){
+            //row for y
+            for (int j = 0; j < 11; j++){
+                if(notelist.note_1_arr[j][i] == 1)
+                    plot_pixel(x + i, y + j, note_colour);
+            }
+        }
+        break;
+    case(1):
+        //col for x
+        for(int i = 0; i < 7; i++){
+            //row for y
+            for (int j = 0; j < 11; j++){
+                if(notelist.note_2_arr[j][i] == 1)
+                    plot_pixel(x + i, y + j, note_colour);
+            }
+        }
+        break;
+    case(2):
+        //col for x
+        for(int i = 0; i < 8; i++){
+            //row for y
+            for (int j = 0; j < 16; j++){
+                if(notelist.note_3_arr[j][i] == 1)
+                    plot_pixel(x + i, y + j, note_colour);
+            }
+        }
+        break;
+    case(3):
+        //col for x
+        for(int i = 0; i < 14; i++){
+            //row for y
+            for (int j = 0; j < 11; j++){
+                if(notelist.note_4_arr[j][i] == 1)
+                    plot_pixel(x + i, y + j, note_colour);
+            }
+        }
+        break; 
+    default://draw case 0
+        //col for x
+        for(int i = 0; i < 10; i++){
+            //row for y
+            for (int j = 0; j < 11; j++){
+                if(notelist.note_1_arr[j][i] == 1)
+                    plot_pixel(x + i, y + j, note_colour);
+            }
+        }
+        break;
+    }
+}
+
+//draw an animation of notes falling between specified left and right limits and max number of elements
+void falling_notes(int left_limit, int right_limit, int max_elem){
+    //draw
+    for(int p = 0; p < max_elem; p++){
+        if(notelist.note_elem_type[p] == -1 && (rand() % notelist.chance) == 0){//if not on map yet
+            notelist.note_elem_type[p] = arr_select();
+            notelist.note_elem_x[p] = rand() % (right_limit + 1 - left_limit + 1) + left_limit + 1; 
+            notelist.note_elem_y[p] = 0;
+            notelist.note_elem_col[p] = game_info.tap_element_colours[rand() % 5];
+            draw_note(notelist.note_elem_x[p],notelist.note_elem_y[p],notelist.note_elem_type[p],notelist.note_elem_col[p]);
+            break;
+        }
+        else if(notelist.note_elem_type != -1){//if already on map
+            draw_note(notelist.note_elem_x[p],notelist.note_elem_y[p],notelist.note_elem_type[p],notelist.note_elem_col[p]);
+        }
+        else{//dont plot anything 
+            break;
+        }
+    }
+
+    //increment
+    for (int i =0; i < max_elem; i++){
+        notelist.note_elem_y[i] = notelist.note_elem_y[i] + notelist.note_speeds[notelist.note_elem_type[i]];
+        if (notelist.note_elem_y[i] > 239){
+            notelist.note_elem_y[i] = -1;
+            notelist.note_elem_x[i] = -1;
+            notelist.note_elem_type[i] = -1;
+            notelist.note_elem_col[i] = -1;
+        }
+    }
+    if (notelist.max_elem < 60)
+        notelist.max_elem++;
+}
+
+//at end of every state, reset the notes
+void reset_notes(){
+        //increment
+    for (int i =0; i < 60; i++){
+        notelist.note_elem_y[i] = -1;
+        notelist.note_elem_x[i] = -1;
+        notelist.note_elem_type[i] = -1;
+        notelist.note_elem_col[i] = -1;
+        notelist.max_elem = 0;
+    }
+}
+
+//used to cutoff the note raina animation
+void clear_col_notes_game(){
+    //define borders
+    int left_end = 43 + 4;
+    int right_end = 279 -4;
+    int top_limit = 0;
+    int bottom_limit = 239;
+
+    //iterate through specified area
+    for(int x = left_end + 1; x < right_end; x++){
+        for(int y = top_limit; y<=bottom_limit; y++){
+            plot_pixel(x,y,colour.black);
+        }
+    }
 }
