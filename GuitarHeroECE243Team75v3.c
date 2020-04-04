@@ -480,8 +480,8 @@ void draw_game_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
-        read_keyboard_game(); 
-        read_keyboard_clear(); 
+        //read_keyboard_game(); 
+        //read_keyboard_clear(); 
         time_left -= 0.25;  
     }
     
@@ -699,6 +699,8 @@ void wait_state_play(){
         status = status; //keep reading status
     } 
 
+    read_keyboard_game(); 
+    read_keyboard_clear(); 
     //return out of wait_state when s = 1
     return;
 }
