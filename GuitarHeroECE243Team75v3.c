@@ -1187,7 +1187,7 @@ void falling_notes(int left_limit, int right_limit, int max_elem){
             draw_note(notelist.note_elem_x[p],notelist.note_elem_y[p],notelist.note_elem_type[p],notelist.note_elem_col[p]);
             break;
         }
-        else if(notelist.note_elem_type != -1){//if already on map
+        else if(notelist.note_elem_type[p] != -1){//if already on map
             draw_note(notelist.note_elem_x[p],notelist.note_elem_y[p],notelist.note_elem_type[p],notelist.note_elem_col[p]);
         }
         else{//dont plot anything 
