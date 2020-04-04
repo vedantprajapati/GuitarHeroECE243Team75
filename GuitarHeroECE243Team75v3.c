@@ -572,12 +572,12 @@ void draw_score_menu(){
                 
 
         if(current_score>current_high_score){
-            int score_difference = current_high_score - current_score;
+            int score_difference = current_score - current_high_score;
             draw_string(80/2 - strlen("You Beat the High Score By: ")/2,60/3 + 8, "You Beat the High Score By: ");
             write_int(80/2 - count_digits(score_difference)/2,60/3 + 10, score_difference);
         }
         else if(current_score<current_high_score){
-            int score_difference = current_score - current_high_score;
+            int score_difference = current_high_score - current_score;
             draw_string(80/2 - strlen("You were below the High Score By: ")/2,60/3 + 8, "You were below the High Score By: ");
             write_int(80/2 - count_digits(score_difference)/2,60/3 + 10, score_difference);
         }
