@@ -45,6 +45,12 @@
 #define ENTER	0x5A 
 #define SPACE	0x29 
 
+#define No_1		0x16
+#define No_2		0x1E
+#define No_3		0x26
+#define No_4		0x25
+#define No_5        0x2E
+
 #define oneSec    200000000
 
 //initialize functions to be used in main
@@ -71,6 +77,7 @@ void write_int(int x,int y, int num);
 int count_digits(int num);
 void reset(); 
 void wait_state_play();
+void read_keyboard_clear(); 
 
 // structure that keeps track of columns with tap element(s) within bounds for points if tapped 
 struct points{
@@ -478,6 +485,8 @@ void draw_game_menu(){
         //set new back buffer
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 
+        read_keyboard_game(); 
+        read_keyboard_clear(); 
         time_left -= 0.25; 
         /* 
         //200000000 = 1 sec
@@ -708,7 +717,7 @@ void wait_state_play(){
         status = status; //keep reading status
     } 
 
-    read_keyboard_game(); 
+    //read_keyboard_game(); 
     //return out of wait_state when s = 1
     return;
 }
@@ -891,6 +900,26 @@ void read_keyboard_start(){
             // default case? 
         }
 	}
+}
+
+// to clear the break 
+void read_keyboard_clear(){
+    volatile int * PS2_ptr = (int *) PS2_BASE;
+
+    int PS2_data, RVALID; 
+
+    unsigned char byte1 = 0;
+	unsigned char byte2 = 0;
+	unsigned char byte3 = 0;
+
+    PS2_data = *(PS2_ptr); 
+    RVALID = (PS2_data & 0x8000); 
+
+    if (RVALID != 0) {
+        byte1 = byte2;
+        byte2 = byte3;
+        byte3 = PS2_data & 0xFF;
+    } 
 }
 
 void read_keyboard_game(){
