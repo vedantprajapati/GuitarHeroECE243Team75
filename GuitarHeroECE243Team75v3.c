@@ -347,14 +347,19 @@ void draw_screen(struct game_data game_info){
 
 //draw a box named tap element that contains the character
 void draw_tap_element(int x1, int y1, short int element_colour){
+    for(int i =0; i < 5; i++){
+        for(int j =0; j<5 ; j++){
+            plot_pixel(x1+i,j+y1, element_colour);
+        }
+    }
     //top line
-    draw_line(x1, y1, x1+4, y1,element_colour);
+    draw_line(x1, y1, x1+4, y1,colour.white);
     // //bottom line
-    draw_line(x1, y1 + 4, x1 + 4, y1 + 4 , element_colour);
+    draw_line(x1, y1 + 4, x1 + 4, y1 + 4 , colour.white);
     // //right line
-    draw_line(x1, y1, x1, y1 + 4 ,element_colour);
+    draw_line(x1, y1, x1, y1 + 4 ,colour.white);
     // //left line
-    draw_line(x1 + 4, y1, x1 + 4, y1+4, element_colour);
+    draw_line(x1 + 4, y1, x1 + 4, y1+4, colour.white);
     
 }
 
