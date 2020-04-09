@@ -1,11 +1,16 @@
-//Guitar Hero Game
-//Vedant Prajapati 1005137610 & Katelyn Khodawandi
+/* 
+* ECE243 Final Project 2020
+* Guitar Hero Game
+* Team 75
+* Vedant Prajapati 1005137610 
+* Katelyn Khodawandi 1005429476 
+*/ 
 
 //useful links:
 //drawing characters, and letters on screen: http://www-ug.eecg.utoronto.ca/desl/nios_devices_SoC/dev_vga.html *note the address is 0xc90000000
 //using the keyboard for input: http://www-ug.eecg.toronto.edu/msl/nios_devices/dev_ps2.html
 
-//include boolean header library for true and false
+//c libraries used in code 
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,7 +19,6 @@
 
 //address_map.h header file
 // relevant addresses used in code 
-
 #define BOARD                 "DE1-SoC"
 
 /* Cyclone V FPGA devices */
@@ -32,7 +36,7 @@
 #define   PERIPH_BASE         0xFFFEC000    // base address of peripheral devices
 #define   MPCORE_PRIV_TIMER   0xFFFEC600    // PERIPH_BASE + 0x0600
 
-// relevant keyboard button scan codes 
+// relevant keyboard button scan codes for PS2 input 
 #define Q		0x15
 #define W		0x1D
 #define E		0x24
@@ -47,10 +51,12 @@
 #define SPACE	0x29 
 
 #define oneSec    200000000
-#define BUF_SIZE 55539 // about 10 seconds of buffer (@ 8K samples/sec)
+
+// audio-related constants 
+#define BUF_SIZE 55539 //  10s of buffer (@ 8K samples/sec)
 #define BUF_THRESHOLD 96 // 75% of 128 word buffer
 
-//initialize functions to be used in main
+// function initializations to be used in main
 void plot_pixel(int x1,int y1, short int pixel_colour);
 void draw_line(int x1, int y1, int x2, int y2, short int line_colour);
 void clear_screen();
@@ -58,23 +64,23 @@ void clear_line();
 void swap(int * x, int * y);
 void wait_state();
 void draw_screen();
-void draw_starting_menu();
-void draw_game_menu();
-void draw_score_menu();
+void draw_starting_menu(); // state 1 
+void draw_game_menu(); // state 2 
+void draw_score_menu(); // state 3 
 void write_char(int x, int y, char c);
 void draw_tap_element(int x1,int x2, short int element_colour); 
 void clear_text();
 void draw_string(int x, int y, char string_name []);
-void play_game(int upper_bound);
+void play_game(int upper_bound); // for use in game_menu state 
 size_t strlen(const char *s);
-void read_keyboard_start();
-void read_keyboard_game();
-bool read_keyboard_score();
+void read_keyboard_start(); // PS2 polling
+void read_keyboard_game();   // PS2 polling
+bool read_keyboard_score(); // PS2 polling
 void write_int(int x,int y, int num);
 int count_digits(int num);
 void reset(); 
 void wait_state_play();
-void read_keyboard_clear(); 
+void read_keyboard_clear();  // PS2 polling
 void clear_col_notes_game();
 void reset_notes();
 void falling_notes(int left_limit, int right_limit, int max_elem);
@@ -276,7 +282,6 @@ struct note_array notelist = {
 
 
 /* global variables */ 
-
 volatile int pixel_buffer_start;  //pixel_buffer_start points to the pixel buffer address
 volatile int * pixel_ctrl_ptr;
 volatile int * MPcore_private_timer_ptr = (int *)MPCORE_PRIV_TIMER; //timer
@@ -285,7 +290,7 @@ volatile int * MPcore_private_timer_ptr = (int *)MPCORE_PRIV_TIMER; //timer
 int main(void){
     //pointer to the pixel controller address
     pixel_ctrl_ptr = (int *)PIXEL_BUF_CTRL_BASE;
-    //volatile char * character_buffer = (char *) (FPGA_CHAR_BASE);
+    
     /* Read location of the pixel buffer from the pixel buffer controller */
     pixel_buffer_start = *pixel_ctrl_ptr;
 
@@ -306,6 +311,7 @@ int main(void){
     *(pixel_ctrl_ptr + 1) = SDRAM_BASE;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
      
+    // always start game at start_menu  
     game_info.current_state = 1;
     
     //keep running
@@ -318,7 +324,7 @@ int main(void){
         if (game_info.tap_element_y[0]>=235)
             game_info.tap_element_y[0] = 0;
         
-        game_info.tap_element_y[0] = game_info.tap_element_y[0] + game_info.drop_speed;  //KK question: what does this do?  
+        game_info.tap_element_y[0] = game_info.tap_element_y[0] + game_info.drop_speed;  
 
         //wait and swap front and back buffers for vsync   
         wait_state();
@@ -377,6 +383,8 @@ void write_char(int x, int y, char c) {
   *character_buffer = c;
 }
 
+// draws start_menu screen 
+// takes user input from keyboard to set game difficulty, song choice 
 void draw_starting_menu(){
     //reset_notes();
     // Main header - game title 
@@ -474,6 +482,7 @@ void draw_starting_menu(){
     }
 }
 
+// draws game_menu screen during actual game play 
 void draw_game_menu(){
 
     int num_elements = 0;
@@ -595,6 +604,7 @@ void draw_game_menu(){
     game_info.current_state = 3;
 }
 
+// helper function for game_menu screen to animate tap elements 
 void play_game(int upper_bound){
 
     while (*(MPcore_private_timer_ptr + 3) == 0){
@@ -640,6 +650,9 @@ void play_game(int upper_bound){
    return;  
 }
 
+// draws score_menu screen after game round ends 
+// shows most recent game score, compares to high score 
+// user can return to start_menu to replay if they want 
 void draw_score_menu(){
     bool change_menu = false;
     while (change_menu == false) {
@@ -732,6 +745,7 @@ void draw_score_menu(){
 
 }
 
+// for drawing text 
 void draw_string(int x, int y, char string_name []){
     char * iterate;
     for (int i =0; i <strlen(string_name); i++){
@@ -791,6 +805,7 @@ void wait_state(){
     return;
 }  
 
+// need a distinct wait_state function to call in game_menu state that properly clears keyboard FIFO queue to prevent double reading 
 void wait_state_play(){
     //set the pixel_ctrl_ptr to point to the pixel_ctrl_ptr address
     volatile int * pixel_ctrl_ptr = (int *)PIXEL_BUF_CTRL_BASE;
@@ -907,6 +922,7 @@ void swap(int * x, int * y){
     *y = temp;   
 }
 
+// PS2 polling to get user input re difficulty and song choice 
 void read_keyboard_start(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
@@ -992,7 +1008,7 @@ void read_keyboard_start(){
 	}
 }
 
-// to clear the break 
+// to clear the break codes 
 void read_keyboard_clear(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
@@ -1014,6 +1030,7 @@ void read_keyboard_clear(){
     } 
 }
 
+// ps2 polling to detect whether user presses keys when tap elements fall beyond bounds for points 
 void read_keyboard_game(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
@@ -1069,6 +1086,7 @@ void read_keyboard_game(){
 
 }
 
+// ps2 polling for score_menu state, to return to start menu if user indicates they want to play again 
 bool read_keyboard_score(){
     volatile int * PS2_ptr = (int *) PS2_BASE;
 
@@ -1098,6 +1116,8 @@ bool read_keyboard_score(){
 	
 }
 
+// to call if user indicates they want to play again in score_menu state
+// reset current_score, tap_element position, song choice, difficulty level, etc. 
 void reset(){
 
     game_info.last_score = game_info.current_info.current_score; 
@@ -1132,6 +1152,7 @@ int arr_select(){
     return sel;
 }
 
+// for animations on score_menu 
 void draw_note(int x, int y, int note_type, short int note_colour){
 
     switch (note_type)
@@ -1254,7 +1275,7 @@ void clear_col_notes_game(){
 /*** for audio-related functions + structures ***/
 /* source: https://d1b10bmlvqabco.cloudfront.net/attach/k4x9gip3a1c3md/jlpw6rtd1kw37r/k8oqgtzwz5jj/asd.c?fbclid=IwAR0JnnvX1_f-gVpvOeiykk6GGN06sp0Ex07Eg3g8VTwu_fmHPJsn_RS4uYg */ 
 
-
+// sorry for this aggressively long array, i started reformatting to get multiple #s on one line but gave up bc its thousands of lines long 
 int music[45674] = {2111.000000, 4611.000000, 4000.000000, 4789.000000, 5526.000000, 6866.000000, 7883.000000, 7810.000000, 6170.000000, 4390.000000, 1834.000000,
 227.000000, -568.000000, -1336.000000, -1851.000000, -1858.000000, 649.000000, 2401.000000, 2272.000000, 2759.000000, 6556.000000, 7488.000000, 7191.000000,
 7342.000000, 6668.000000,6768.000000, 6625.000000, 6770.000000, 6612.000000,6959.000000, 7343.000000, 6400.000000, 4383.000000,3507.000000, 2841.000000,2416.000000, 
@@ -46533,17 +46554,16 @@ int music[45674] = {2111.000000, 4611.000000, 4000.000000, 4789.000000, 5526.000
 -907.000000,
 };
 
+// from audio source file indicated earlier 
 float map(float value, float istart, float istop, float ostart, float ostop) {
 	return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
 }
 
 void play_song() {
-	
-	volatile int* audio_ptr = (int*) AUDIO_BASE;
-	int fifo;
+	volatile int* audio_ptr = (int*) AUDIO_BASE; // pointer to audio port 
+	int fifo; 
     int play = 1; 
 	int buffer_index = 0;
-
 
 	while (play) {
 		fifo = *(audio_ptr + 1); // read the audio port fifospace register
