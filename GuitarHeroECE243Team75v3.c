@@ -655,6 +655,9 @@ void play_game(int upper_bound){
 // user can return to start_menu to replay if they want 
 void draw_score_menu(){
     bool change_menu = false;
+    //print the high score so far for the specified game
+    int current_high_score = game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1];
+    int current_score = game_info.current_info.current_score;
     while (change_menu == false) {
         clear_screen(); // to get rid of old game_menu screen
         // play_song(); // when placed here, song loops once before score menu appears  
@@ -663,11 +666,6 @@ void draw_score_menu(){
         char screen_title[] = "* Thanks for Playing *"; 
         // char game_difficulty[10] = ""; // KK do we need this?
         draw_string(80/2 -strlen(screen_title)/2, 1, screen_title);
-
-
-        //print the high score so far for the specified game
-        int current_high_score = game_info.high_score[game_info.current_info.song_num - 1][game_info.current_info.difficulty_level - 1];
-        int current_score = game_info.current_info.current_score;
 
         draw_string(80/2 - strlen("The High Score to Beat Was: ")/2,60/3, "The High Score to Beat Was: ");
         write_int(80/2 - count_digits(current_high_score)/2,60/3 + 2, current_high_score);
