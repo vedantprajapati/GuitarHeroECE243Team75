@@ -46562,6 +46562,7 @@ void play_song() {
 	int fifo; 
     int play = 1; 
 	int buffer_index = 0;
+    // int exit = 0; 
 
 	while (play) {
 		fifo = *(audio_ptr + 1); // read the audio port fifospace register
@@ -46578,10 +46579,13 @@ void play_song() {
 				++buffer_index;
                
 				if (buffer_index == BUF_SIZE) 
-					play=0; // done 
+					play=0; // done reading thru entire song array 
 				
 			    fifo = *(audio_ptr + 1); // read the audio port fifospace register
-			}
+                // exit = read_keyboard_score(); // if user pressed T during song loop
+                //if (exit) // early exit 
+                    //return; // causes weird glitch in audio
+            }
 
 		}
 	}
