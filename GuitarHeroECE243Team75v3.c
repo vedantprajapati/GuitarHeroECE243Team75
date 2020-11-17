@@ -2,8 +2,8 @@
 * ECE243 Final Project 2020
 * Guitar Hero Game
 * Team 75
-* Vedant Prajapati 1005137610 
-* Katelyn Khodawandi 1005429476 
+* Vedant Prajapati
+* Katelyn Khodawandi
 */ 
 
 //useful links:
